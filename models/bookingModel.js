@@ -127,6 +127,22 @@ AND status = $${values.length}
 const result = await pool.query(query,values);
 return Number(result.rows[0].total);
 };
+
+const getBookingForPayment = async (booking_id, customer_id) => {
+    const query = `
+        SELECT id, customer_id, status
+        FROM bookings
+        WHERE id = $1
+        AND customer_id = $2
+    `;
+
+    const result = await pool.query(query, [
+        booking_id,
+        customer_id
+    ]);
+
+    return result.rows[0];
+};
 // udate ke sath khelnege 
 const cancelBooking = async (booking_id, customer_id) => {
 const query = `
@@ -152,5 +168,6 @@ module.exports = {
 createBooking,
 getBookingsByCustomerId,
 getTotalBookingsByCustomerId,
-cancelBooking
+cancelBooking,
+getBookingForPayment
 };

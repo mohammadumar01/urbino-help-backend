@@ -7,6 +7,10 @@ startJob,
 completeJob
 } = require("../models/agentModel");
 
+const {
+    createNotification
+} = require("../models/notificationModel");
+
 const getAssignedJobs = async (req, res) => {
 try {
 
@@ -98,6 +102,14 @@ try {
             message: "Booking not found or already accepted"
         });
     }
+        // Create notification for customer
+    await createNotification(
+        booking.customer_id,
+        booking.id,
+        "Agent Accepted",
+        "The assigned agent has accepted your service booking.",
+        "agent_accepted"
+    );
 
     return res.status(200).json({
         success: true,
@@ -132,6 +144,15 @@ try {
         });
     }
 
+    // Create notification for customer
+    await createNotification(
+        booking.customer_id,
+        booking.id,
+        "Agent On The Way",
+        "The assigned agent is on the way to your location.",
+        "agent_on_the_way"
+    );
+
     return res.status(200).json({
         success: true,
         message: "Agent is on the way",
@@ -164,6 +185,15 @@ const startAssignedJob = async (req, res) => {
                 message: "Booking not found or agent is not on the way"
             });
         }
+
+        // Create notification for customer
+        await createNotification(
+            booking.customer_id,
+            booking.id,
+            "Work Started",
+            "The agent has started working on your service request.",
+            "work_started"
+        );
 
         return res.status(200).json({
             success: true,
@@ -198,6 +228,15 @@ const completeAssignedJob = async (req, res) => {
             });
         }
 
+         // Create notification for customer
+        await createNotification(
+            booking.customer_id,
+            booking.id,
+            "Work Completed",
+            "Your service request has been completed successfully.",
+            "work_completed"
+        );
+        
         return res.status(200).json({
             success: true,
             message: "Work completed successfully",

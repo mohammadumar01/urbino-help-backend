@@ -5,118 +5,112 @@ A production-ready Backend API for an On-Demand Home Service Platform built with
 ## Features
 
 - JWT Authentication
-- Role Based Authorization
+- Role-Based Authorization
+- Secure Password Hashing using bcrypt
 - Customer Booking Management
 - Provider Booking Management
 - Agent Job Management
 - Admin Dashboard
+- Provider Profile Management
+- Provider Service Management
+- Payment Management
+- Payment Status Tracking
+- Payment Validation
+- Duplicate Payment Prevention
+- Customer Notifications
+- Payment Success Notifications
+- Reviews & Ratings
 - Pagination
 - Search
+- Filtering
 - Sorting
-- Swagger API Documentation
+- Redis Caching
+- Cache Hit/Miss Handling
+- Cache Invalidation
 - Soft Delete
-- Secure Password Hashing (bcrypt)
+- Agent Restore
+- Swagger API Documentation
+- Postman API Collection
+- RESTful API Architecture
+
 
 ## Tech Stack
 
 - Node.js
 - Express.js
 - PostgreSQL
+- Redis
 - JWT
 - bcryptjs
 - Swagger UI
 - Postman
+- Nodemon
+
 
 ## Project Structure
 
-src/
+urbino-help-backend/
+│
 ├── config/
+│   ├── db.js
+│   ├── redis.js
+│   ├── cacheKeys.js
+│   └── swagger.js
+│
 ├── constants/
+│   └── roles.js
+│
 ├── controllers/
+│   ├── authController.js
+│   ├── bookingController.js
+│   ├── providerController.js
+│   ├── agentController.js
+│   ├── adminController.js
+│   ├── notificationController.js
+│   ├── paymentController.js
+│   ├── providerProfileController.js
+│   ├── providerServiceController.js
+│   └── reviewController.js
+│
 ├── middleware/
+│   ├── authMiddleware.js
+│   └── roleMiddleware.js
+│
 ├── models/
+│   ├── userModel.js
+│   ├── bookingModel.js
+│   ├── notificationModel.js
+│   ├── paymentModel.js
+│   ├── providerProfileModel.js
+│   ├── providerServiceModel.js
+│   └── reviewModel.js
+│
 ├── routes/
+│   ├── authRoutes.js
+│   ├── bookingRoutes.js
+│   ├── customerRoutes.js
+│   ├── providerRoutes.js
+│   ├── agentRoutes.js
+│   ├── adminRoutes.js
+│   ├── notificationRoutes.js
+│   ├── paymentRoutes.js
+│   ├── providerProfileRoutes.js
+│   ├── providerServiceRoutes.js
+│   └── reviewRoutes.js
+│
 ├── utils/
+│   └── cacheUtils.js
+│
+├── app.js
+├── server.js
+├── package.json
+├── package-lock.json
+└── .gitignore
+
 
 ## Installation
 
+Clone the repository:
+
 ```bash
 git clone <repository-url>
-
-cd urbino-help-backend
-
-npm install
-```
-
-## Environment Variables
-
-Create a .env file
-
-```env
-PORT=5500
-
-DB_HOST=localhost
-
-DB_PORT=5432
-
-DB_NAME=urbino_help
-
-DB_USER=postgres
-
-DB_PASSWORD=your_password
-
-JWT_SECRET=your_secret_key
-```
-
-## Run Project
-
-```bash
-npm run dev
-```
-
-## Swagger Documentation
-
-```
-http://localhost:5500/api-docs
-```
-
-## Main Modules
-
-### Authentication
-
-- Register
-- Login
-
-### Customer
-
-- Create Booking
-- My Bookings
-- Cancel Booking
-
-### Provider
-
-- View Pending Bookings
-- Accept Booking
-- Assign Agent
-- Complete Booking
-
-### Agent
-
-- My Jobs
-- Accept Job
-- On The Way
-- Start Work
-- Complete Work
-
-### Admin
-
-- Dashboard
-- Users Management
-- Booking Management
-- Assign Agent
-- Soft Delete Agent
-- Restore Agent
-
-## Author
-
-Mohammad Umar
