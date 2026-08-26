@@ -2,6 +2,9 @@ const express = require("express");
 const router = express.Router();
 
 const authMiddleware = require("../middleware/authMiddleware");
+const { body } = require("express-validator");
+const validateRequest = require("../middleware/validationMiddleware");
+
 const roleMiddleware = require("../middleware/roleMiddleware");
 const ROLES = require("../constants/roles");
 
@@ -57,11 +60,33 @@ changePaymentStatus
  */
 router.post(
     "/",
+
     authMiddleware,
-    roleMiddleware(ROLES.USER),
+
+    roleMiddleware(ROLES.CUSTOMER),
+
+    [
+        body("booking_id")
+            .notEmpty()
+            .withMessage("Booking ID is required")
+            .isInt()
+            .withMessage("Booking ID must be integer"),
+
+        body("amount")
+            .notEmpty()
+            .withMessage("Amount is required")
+            .isFloat({ min: 1 })
+            .withMessage("Amount must be greater than 0"),
+
+        body("payment_method")
+            .notEmpty()
+            .withMessage("Payment method is required")
+    ],
+
+    validateRequest,
+
     createNewPayment
 );
-
 /**
  * @swagger
  * /api/payment/booking/{booking_id}:

@@ -5,13 +5,17 @@ const router = express.Router();
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware.js");
 
+const { body } = require("express-validator");
+const validateRequest = require("../middleware/validationMiddleware");
+
 
 
 const {
     getAllPendingBookings,
     acceptCustomerBooking,
     completeCustomerBooking,
-    assignAgent
+    assignAgent,
+    autoAssignAgent
 } = require("../controllers/providerController");
 
 /**
@@ -151,11 +155,59 @@ router.put(
  *       500:
  *         description: Internal Server Error
  */
-
 router.put(
     "/assign-agent/:id",
+
     authMiddleware,
+
     roleMiddleware(ROLES.PROVIDER),
+
+    [
+        body("agent_id")
+            .notEmpty()
+            .withMessage("Agent ID is required")
+            .isInt()
+            .withMessage("Agent ID must be integer")
+    ],
+
+    validateRequest,
+
     assignAgent
 );
+
+/**
+ * @swagger
+ * /api/provider/auto-assign/{id}:
+ *   put:
+ *     summary: Automatically assign the best available agent
+ *     tags: [Provider]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         example: 9
+ *     responses:
+ *       200:
+ *         description: Agent automatically assigned successfully
+ *       404:
+ *         description: No suitable available agent found
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Provider access only
+ *       500:
+ *         description: Internal Server Error
+ */
+
+router.put(
+    "/auto-assign/:id",
+    authMiddleware,
+    roleMiddleware(ROLES.PROVIDER),
+    autoAssignAgent
+);
+
 module.exports = router;

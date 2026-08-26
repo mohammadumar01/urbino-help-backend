@@ -1,31 +1,29 @@
 const express = require("express");
+
 const router = express.Router();
 
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
 const ROLES = require("../constants/roles");
 
-const { body } = require("express-validator");
-const validateRequest = require("../middleware/validationMiddleware");
-
 const {
-    getServices,
-    addService,
-    deleteService
-} = require("../controllers/providerServiceController");
+    getMyAgents,
+    addAgent,
+    removeAgent
+} = require("../controllers/providerAgentController");
 
 
 /**
  * @swagger
- * /api/provider-services:
+ * /api/provider-agents:
  *   get:
- *     summary: Get provider services
- *     tags: [Provider Services]
+ *     summary: Get provider's agents
+ *     tags: [Provider Agents]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Provider services fetched successfully
+ *         description: Provider agents fetched successfully
  *       401:
  *         description: Unauthorized
  *       403:
@@ -37,16 +35,16 @@ router.get(
     "/",
     authMiddleware,
     roleMiddleware(ROLES.PROVIDER),
-    getServices
+    getMyAgents
 );
 
 
 /**
  * @swagger
- * /api/provider-services:
+ * /api/provider-agents:
  *   post:
- *     summary: Add service to provider
- *     tags: [Provider Services]
+ *     summary: Add an agent to provider
+ *     tags: [Provider Agents]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -56,84 +54,67 @@ router.get(
  *           schema:
  *             type: object
  *             required:
- *               - service_id
- *               - price
+ *               - agent_id
  *             properties:
- *               service_id:
+ *               agent_id:
  *                 type: integer
- *                 example: 2
- *               price:
- *                 type: number
- *                 example: 600
+ *                 example: 11
  *     responses:
  *       201:
- *         description: Service added successfully
+ *         description: Agent added successfully
  *       400:
- *         description: Invalid request or service already added
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Provider access only
- *       500:
- *         description: Internal Server Error
- */
-router.post(
-    "/",
-
-    authMiddleware,
-
-    roleMiddleware(ROLES.PROVIDER),
-
-    [
-        body("service_id")
-            .notEmpty()
-            .withMessage("Service ID is required")
-            .isInt()
-            .withMessage("Service ID must be integer"),
-
-        body("price")
-            .notEmpty()
-            .withMessage("Price is required")
-            .isFloat({ min: 1 })
-            .withMessage("Price must be greater than 0")
-    ],
-
-    validateRequest,
-
-    addService
-);
-/**
- * @swagger
- * /api/provider-services/{serviceId}:
- *   delete:
- *     summary: Remove service from provider
- *     tags: [Provider Services]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: serviceId
- *         required: true
- *         schema:
- *           type: integer
- *         example: 2
- *     responses:
- *       200:
- *         description: Service removed successfully
+ *         description: Agent ID is required
  *       401:
  *         description: Unauthorized
  *       403:
  *         description: Provider access only
  *       404:
- *         description: Provider service not found
+ *         description: Agent not found
+ *       409:
+ *         description: Agent already added
+ *       500:
+ *         description: Internal Server Error
+ */
+router.post(
+    "/",
+    authMiddleware,
+    roleMiddleware(ROLES.PROVIDER),
+    addAgent
+);
+
+
+/**
+ * @swagger
+ * /api/provider-agents/{agent_id}:
+ *   delete:
+ *     summary: Remove agent from provider
+ *     tags: [Provider Agents]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: agent_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         example: 11
+ *     responses:
+ *       200:
+ *         description: Agent removed successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Provider access only
+ *       404:
+ *         description: Agent not found for this provider
  *       500:
  *         description: Internal Server Error
  */
 router.delete(
-    "/:serviceId",
+    "/:agent_id",
     authMiddleware,
     roleMiddleware(ROLES.PROVIDER),
-    deleteService
+    removeAgent
 );
 
 

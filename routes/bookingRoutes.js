@@ -3,6 +3,8 @@ const express = require("express");
 const router = express.Router();
 
 const authMiddleware = require("../middleware/authMiddleware");
+const { body } = require("express-validator");
+const validateRequest = require("../middleware/validationMiddleware");
 
 const {
     createCustomerBooking,
@@ -55,7 +57,31 @@ const {
 
 router.post(
     "/create",
+
     authMiddleware,
+
+    [
+        body("service_name")
+            .notEmpty()
+            .withMessage("Service name is required")
+            .isLength({ min: 3 })
+            .withMessage("Service name must be at least 3 characters"),
+
+        body("address")
+            .notEmpty()
+            .withMessage("Address is required"),
+
+        body("booking_date")
+            .notEmpty()
+            .withMessage("Booking date is required"),
+
+        body("booking_time")
+            .notEmpty()
+            .withMessage("Booking time is required")
+    ],
+
+    validateRequest,
+
     createCustomerBooking
 );
 

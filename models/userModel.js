@@ -6,7 +6,7 @@ const createUser = async (
     email,
     password,
     phone,
-    role = ROLES.USER
+    role = ROLES.CUSTOMER
 ) => {
 
     const query = `

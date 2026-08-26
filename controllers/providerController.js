@@ -5,6 +5,7 @@ const {
             acceptBooking,
             completeBooking,
             assignAgentToBooking,
+            findBestAgentForBooking,
             getTotalPendingBookings,
 
 } = require("../models/providerModel");
@@ -94,6 +95,34 @@ try {
         });
     }
 
+    // yha ek aur 
+
+    let assignedBooking = booking;
+
+        try {
+            const smartBooking = await findBestAgentForBooking(
+                id,
+                req.user.id
+            );
+
+        if (smartBooking) {
+                assignedBooking = smartBooking;
+
+                await createNotification(
+                    smartBooking.agent_id,
+                    smartBooking.id,
+                    "New Job Assigned",
+                    "A new service job has been assigned to you.",
+                    "job_assigned"
+                );
+            }
+
+} catch (assignmentError) {
+    console.error(
+        "Smart Agent Assignment Error:",
+        assignmentError.message
+    );
+}
     await redisClient.del(CACHE_KEYS.ADMIN_DASHBOARD);
     console.log("Dashboard Cache Cleared");
 
@@ -110,7 +139,7 @@ try {
     return res.status(200).json({
         success: true,
         message: "Booking accepted by provider successfully",
-        booking
+        booking : assignedBooking
     });
 
 } catch (error) {
@@ -206,9 +235,64 @@ catch (error) {
 }
 };
 
+const autoAssignAgent = async (req, res) => {
+    try {
+
+        const { id } = req.params;
+
+        const booking = await findBestAgentForBooking(
+            id,
+            req.user.id
+        );
+
+        if (!booking) {
+            return res.status(404).json({
+                success: false,
+                message: "No suitable available agent found"
+            });
+        }
+
+        await redisClient.del(CACHE_KEYS.ADMIN_DASHBOARD);
+
+        console.log("Dashboard cache Cleared");
+
+        await createNotification(
+            booking.customer_id,
+            booking.id,
+            "Agent Assigned",
+            "An agent has been automatically assigned to your service booking.",
+            "agent_assigned"
+        );
+
+        await createNotification(
+            booking.agent_id,
+            booking.id,
+            "New Job Assigned",
+            "A new service job has been assigned to you.",
+            "job_assigned"
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: "Agent automatically assigned successfully",
+            booking
+        });
+
+    } catch (error) {
+
+        console.error("Auto Assign Agent Error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
 module.exports = {
-getAllPendingBookings,
-acceptCustomerBooking,
-completeCustomerBooking,
-assignAgent
+    getAllPendingBookings,
+    acceptCustomerBooking,
+    completeCustomerBooking,
+    assignAgent,
+    autoAssignAgent
 };

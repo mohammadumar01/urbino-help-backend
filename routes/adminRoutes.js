@@ -5,6 +5,9 @@ const router = express.Router();
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
 
+const { body } = require("express-validator");
+const validateRequest = require("../middleware/validationMiddleware");
+
 
 const {
     getUsers,
@@ -192,11 +195,42 @@ router.patch("/bookings/:id/status",
  *       500:
  *         description: Internal Server Error
  */
-
 router.post(
     "/agents",
+
     authMiddleware,
+
     roleMiddleware(ROLES.ADMIN),
+
+    [
+        body("name")
+            .notEmpty()
+            .withMessage("Name is required")
+            .isLength({ min: 3 })
+            .withMessage("Name must be at least 3 characters"),
+
+
+        body("email")
+            .notEmpty()
+            .withMessage("Email is required")
+            .isEmail()
+            .withMessage("Enter valid email"),
+
+
+        body("password")
+            .notEmpty()
+            .withMessage("Password is required")
+            .isLength({ min: 6 })
+            .withMessage("Password must be at least 6 characters"),
+
+
+        body("phone")
+            .notEmpty()
+            .withMessage("Phone is required")
+    ],
+
+    validateRequest,
+
     createAgent
 );
 
@@ -296,8 +330,31 @@ router.get(
  */
 router.put(
     "/agents/:id",
+
     authMiddleware,
+
     roleMiddleware(ROLES.ADMIN),
+
+    [
+        body("name")
+            .notEmpty()
+            .withMessage("Name is required")
+            .isLength({ min: 3 })
+            .withMessage("Name must be at least 3 characters"),
+
+        body("email")
+            .notEmpty()
+            .withMessage("Email is required")
+            .isEmail()
+            .withMessage("Enter valid email"),
+
+        body("phone")
+            .notEmpty()
+            .withMessage("Phone is required")
+    ],
+
+    validateRequest,
+
     updateAgent
 );
 
@@ -465,11 +522,23 @@ router.put(
  *       500:
  *         description: Internal Server Error
  */
-
 router.put(
     "/assign-agent/:id",
+
     authMiddleware,
+
     roleMiddleware(ROLES.ADMIN),
+
+    [
+        body("agent_id")
+            .notEmpty()
+            .withMessage("Agent ID is required")
+            .isInt()
+            .withMessage("Agent ID must be integer")
+    ],
+
+    validateRequest,
+
     assignAgent
 );
 module.exports = router;

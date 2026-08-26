@@ -7,6 +7,9 @@ const { register, login } = require("../controllers/authController");
 
 const authMiddleware = require("../middleware/authMiddleware");
 
+const { body } = require("express-validator");
+const validateRequest = require("../middleware/validationMiddleware");
+
 /**
  * @swagger
  * /api/auth/register:
@@ -44,7 +47,35 @@ const authMiddleware = require("../middleware/authMiddleware");
  *       500:
  *         description: Internal Server Error
  */
-router.post("/register", register);
+router.post(
+    "/register",
+
+    [
+        body("name")
+            .notEmpty()
+            .withMessage("Name is required")
+            .isLength({ min: 3 })
+            .withMessage("Name must be at least 3 characters"),
+
+
+        body("email")
+            .notEmpty()
+            .withMessage("Email is required")
+            .isEmail()
+            .withMessage("Enter valid email"),
+
+
+        body("password")
+            .notEmpty()
+            .withMessage("Password is required")
+            .isLength({ min: 6 })
+            .withMessage("Password must be at least 6 characters")
+    ],
+
+    validateRequest,
+
+    register
+);
 
 /**
  * @swagger
@@ -76,7 +107,25 @@ router.post("/register", register);
  *       500:
  *         description: Internal Server Error
  */
-router.post("/login", login);
+router.post(
+    "/login",
+
+    [
+        body("email")
+            .notEmpty()
+            .withMessage("Email is required")
+            .isEmail()
+            .withMessage("Enter valid email"),
+
+        body("password")
+            .notEmpty()
+            .withMessage("Password is required")
+    ],
+
+    validateRequest,
+
+    login
+);
 
 /**
  * @swagger

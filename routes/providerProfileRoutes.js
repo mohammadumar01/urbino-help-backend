@@ -5,6 +5,10 @@ const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
 const ROLES = require("../constants/roles");
 
+const { body } = require("express-validator");
+const validateRequest = require("../middleware/validationMiddleware");
+
+
 const {
 createProfile,
 getProfile,
@@ -66,8 +70,39 @@ getPublicProfile
  */
 router.post(
 "/profile",
+
 authMiddleware,
+
 roleMiddleware(ROLES.PROVIDER),
+
+[
+    body("bio")
+        .notEmpty()
+        .withMessage("Bio is required"),
+
+    body("experience_years")
+        .notEmpty()
+        .withMessage("Experience years is required")
+        .isInt({ min: 0 })
+        .withMessage("Experience years must be a valid number"),
+
+    body("skills")
+        .notEmpty()
+        .withMessage("Skills are required"),
+
+    body("service_area")
+        .notEmpty()
+        .withMessage("Service area is required"),
+
+    body("hourly_rate")
+        .notEmpty()
+        .withMessage("Hourly rate is required")
+        .isFloat({ min: 1 })
+        .withMessage("Hourly rate must be greater than 0")
+],
+
+validateRequest,
+
 createProfile
 );
 
@@ -147,8 +182,39 @@ getProfile
  */
 router.put(
 "/profile",
+
 authMiddleware,
+
 roleMiddleware(ROLES.PROVIDER),
+
+[
+    body("bio")
+        .notEmpty()
+        .withMessage("Bio is required"),
+
+    body("experience_years")
+        .notEmpty()
+        .withMessage("Experience years is required")
+        .isInt({ min: 0 })
+        .withMessage("Experience years must be a valid number"),
+
+    body("skills")
+        .notEmpty()
+        .withMessage("Skills are required"),
+
+    body("service_area")
+        .notEmpty()
+        .withMessage("Service area is required"),
+
+    body("hourly_rate")
+        .notEmpty()
+        .withMessage("Hourly rate is required")
+        .isFloat({ min: 1 })
+        .withMessage("Hourly rate must be greater than 0")
+],
+
+validateRequest,
+
 updateProfile
 );
 

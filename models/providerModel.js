@@ -99,15 +99,19 @@ const assignAgentToBooking = async (
     provider_id,
     agent_id
 ) => {
+
     const query = `
-    UPDATE bookings 
-    SET agent_id = $3,
-    status = '${BOOKING_STATUS.AGENT_ASSIGNED}',
-    agent_assigned_at = CURRENT_TIMESTAMP
-    WHERE id = $1
-    AND provider_id = $2
-    AND status = '${BOOKING_STATUS.PROVIDER_ACCEPTED}'
-    RETURNING *;
+        UPDATE bookings
+        SET
+            agent_id = $3,
+            status = '${BOOKING_STATUS.AGENT_ASSIGNED}',
+            agent_assigned_at = CURRENT_TIMESTAMP
+
+        WHERE id = $1
+        AND provider_id = $2
+        AND status = '${BOOKING_STATUS.PROVIDER_ACCEPTED}'
+
+        RETURNING *;
     `;
 
     const values = [
@@ -117,6 +121,82 @@ const assignAgentToBooking = async (
     ];
 
     const result = await pool.query(query, values);
+
+    return result.rows[0];
+};
+const findBestAgentForBooking = async (
+    booking_id,
+    provider_id
+) => {
+
+    const query = `
+        WITH eligible_agents AS (
+
+            SELECT
+                pa.agent_id,
+
+                (
+                    SELECT COUNT(*)
+                    FROM bookings active_booking
+                    WHERE active_booking.agent_id = pa.agent_id
+                    AND active_booking.status IN (
+                        '${BOOKING_STATUS.AGENT_ASSIGNED}',
+                        '${BOOKING_STATUS.AGENT_ACCEPTED}',
+                        '${BOOKING_STATUS.ON_THE_WAY}',
+                        '${BOOKING_STATUS.IN_PROGRESS}'
+                    )
+                ) AS active_jobs
+
+            FROM provider_agents pa
+
+            JOIN agent_services ags
+                ON ags.agent_id = pa.agent_id
+
+            JOIN services s
+                ON s.id = ags.service_id
+
+            JOIN bookings b
+                ON b.id = $1
+                AND LOWER(s.name) = LOWER(b.service_name)
+
+            WHERE pa.provider_id = $2
+        ),
+
+        selected_agent AS (
+
+            SELECT agent_id
+            FROM eligible_agents
+
+            WHERE active_jobs = 0
+
+            ORDER BY active_jobs ASC, agent_id ASC
+
+            LIMIT 1
+        )
+
+        UPDATE bookings b
+
+        SET
+            agent_id = selected_agent.agent_id,
+            status = '${BOOKING_STATUS.AGENT_ASSIGNED}',
+            agent_assigned_at = CURRENT_TIMESTAMP
+
+        FROM selected_agent
+
+        WHERE b.id = $1
+        AND b.provider_id = $2
+        AND b.status = '${BOOKING_STATUS.PROVIDER_ACCEPTED}'
+
+        RETURNING b.*;
+    `;
+
+    const values = [
+        booking_id,
+        provider_id
+    ];
+
+    const result = await pool.query(query, values);
+
     return result.rows[0];
 };
 
@@ -153,6 +233,7 @@ module.exports = {
     acceptBooking,
     completeBooking,
     assignAgentToBooking,
+     findBestAgentForBooking,
     getTotalPendingBookings
     
 };
