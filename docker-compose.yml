@@ -1,0 +1,59 @@
+services:
+
+  backend:
+    build: .
+    container_name: urbino-backend
+
+    env_file:
+      - .env
+
+    ports:
+      - "5500:5500"
+
+    environment:
+      PORT: 5500
+
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: "Aayu#0786"
+      DB_NAME: Urbino_help
+
+      REDIS_URL: redis://redis:6379
+
+    depends_on:
+      - postgres
+      - redis
+
+
+  postgres:
+    image: postgres:18
+    container_name: urbino-postgres
+
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "Aayu#0786"
+      POSTGRES_DB: Urbino_help
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql
+      - ./database.sql:/docker-entrypoint-initdb.d/database.sql
+
+
+  redis:
+    image: redis:7-alpine
+    container_name: urbino-redis
+
+    ports:
+      - "6379:6379"
+
+    volumes:
+      - redis_data:/data
+
+
+volumes:
+  postgres_data:
+  redis_data:

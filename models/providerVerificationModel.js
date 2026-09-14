@@ -140,10 +140,37 @@ const checkAadhaarExists = async (provider_id) => {
 
 };
 
+// Check if same document type already exists for provider
+
+const checkDocumentExists = async (
+    provider_id,
+    document_type
+) => {
+
+    const query = `
+        SELECT *
+        FROM provider_verifications
+        WHERE provider_id = $1
+        AND document_type = $2;
+    `;
+
+    const result = await pool.query(
+        query,
+        [
+            provider_id,
+            document_type
+        ]
+    );
+
+    return result.rows[0];
+
+};
+
 module.exports = {
 createVerification,
 getVerificationByProvider,
 getPendingVerifications,
 updateVerificationStatus,
-checkAadhaarExists
+checkAadhaarExists,
+checkDocumentExists
 };

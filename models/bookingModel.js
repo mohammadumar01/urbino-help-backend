@@ -5,7 +5,8 @@ customer_id,
 service_name,
 address,
 booking_date,
-booking_time
+booking_time,
+provider_id
 
 ) => {
 const query = `
@@ -15,9 +16,10 @@ customer_id,
 service_name,
 address,
 booking_date,
-booking_time
+booking_time,
+provider_id
 ) VALUES
-($1, $2, $3, $4, $5)
+($1, $2, $3, $4, $5, $6)
 RETURNING *;
 `;
 
@@ -26,7 +28,8 @@ customer_id,
 service_name,
 address,
 booking_date,
-booking_time
+booking_time,
+provider_id || null
 ];
 
 const result = await pool.query(query, values);
@@ -143,6 +146,41 @@ const getBookingForPayment = async (booking_id, customer_id) => {
 
     return result.rows[0];
 };
+
+const rescheduleBooking = async (
+    booking_id,
+    customer_id,
+    booking_date,
+    booking_time
+) => {
+
+    const query = `
+        UPDATE bookings
+        SET
+            booking_date = $3,
+            booking_time = $4
+        WHERE id = $1
+        AND customer_id = $2
+        AND status = 'pending'
+        RETURNING *;
+    `;
+
+    const values = [
+        booking_id,
+        customer_id,
+        booking_date,
+        booking_time
+    ];
+
+    const result = await pool.query(
+        query,
+        values
+    );
+
+    return result.rows[0];
+};
+
+
 // udate ke sath khelnege 
 const cancelBooking = async (booking_id, customer_id) => {
 const query = `
@@ -168,6 +206,7 @@ module.exports = {
 createBooking,
 getBookingsByCustomerId,
 getTotalBookingsByCustomerId,
+rescheduleBooking,
 cancelBooking,
 getBookingForPayment
 };

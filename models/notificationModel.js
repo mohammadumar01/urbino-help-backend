@@ -84,9 +84,44 @@ const result = await pool.query(query, values);
 return result.rows[0];
 };
 
+// Get Unread Notification Count
+const getUnreadNotificationCount = async (user_id) => {
+
+    const query = `
+        SELECT COUNT(*) AS count
+        FROM notifications
+        WHERE user_id = $1
+        AND is_read = FALSE;
+    `;
+
+    const result = await pool.query(query, [user_id]);
+
+    return Number(result.rows[0].count);
+};
+
+// Mark All Notifications as Read
+const markAllNotificationsAsRead = async (user_id) => {
+
+    const query = `
+        UPDATE notifications
+        SET is_read = TRUE
+        WHERE user_id = $1
+        AND is_read = FALSE
+        RETURNING *;
+    `;
+
+    const result = await pool.query(
+        query,
+        [user_id]
+    );
+    return result.rows;
+};
 
 module.exports = {
 createNotification,
 getUserNotifications,
-markNotificationAsRead
+markNotificationAsRead,
+getUnreadNotificationCount,
+markAllNotificationsAsRead
+
 };

@@ -1,15 +1,15 @@
 const express = require("express");
-
 const router = express.Router();
-
 const authMiddleware = require("../middleware/authMiddleware");
 const { body } = require("express-validator");
 const validateRequest = require("../middleware/validationMiddleware");
 
+
 const {
-    createCustomerBooking,
-    getMyBooking,
-    cancelCustomerBooking
+createCustomerBooking,
+getMyBooking,
+cancelCustomerBooking,
+ rescheduleCustomerBooking
 } = require("../controllers/bookingController");
 
 /**
@@ -40,7 +40,7 @@ const {
  *                 example: Kota, Rajasthan
  *               booking_date:
  *                 type: string
- *                 example: 2026-08-15
+ *                 example: 2026-09-10
  *               booking_time:
  *                 type: string
  *                 example: 10:00 AM
@@ -56,33 +56,38 @@ const {
  */
 
 router.post(
-    "/create",
 
-    authMiddleware,
+"/create",
 
-    [
-        body("service_name")
-            .notEmpty()
-            .withMessage("Service name is required")
-            .isLength({ min: 3 })
-            .withMessage("Service name must be at least 3 characters"),
+authMiddleware,
 
-        body("address")
-            .notEmpty()
-            .withMessage("Address is required"),
+[
 
-        body("booking_date")
-            .notEmpty()
-            .withMessage("Booking date is required"),
+    body("service_name")
+        .notEmpty()
+        .withMessage("Service name is required")
+        .isLength({ min: 3 })
+        .withMessage(
+            "Service name must be at least 3 characters"
+        ),
 
-        body("booking_time")
-            .notEmpty()
-            .withMessage("Booking time is required")
-    ],
+    body("address")
+        .notEmpty()
+        .withMessage("Address is required"),
 
-    validateRequest,
+    body("booking_date")
+        .notEmpty()
+        .withMessage("Booking date is required"),
 
-    createCustomerBooking
+    body("booking_time")
+        .notEmpty()
+        .withMessage("Booking time is required")
+
+],
+
+validateRequest,
+
+createCustomerBooking
 );
 
 /**
@@ -134,10 +139,14 @@ router.post(
  */
 
 router.get(
-    "/my-bookings",
-    authMiddleware,
-    getMyBooking
+
+"/my-bookings",
+
+authMiddleware,
+
+getMyBooking
 );
+
 
 /**
  * @swagger
@@ -164,10 +173,79 @@ router.get(
  *       500:
  *         description: Internal Server Error
  */
+
 router.put(
-    "/cancel/:id",
-    authMiddleware,
-    cancelCustomerBooking
+
+"/cancel/:id",
+
+authMiddleware,
+
+cancelCustomerBooking
 );
+
+/**
+ * @swagger
+ * /api/booking/reschedule/{id}:
+ *   put:
+ *     summary: Reschedule a booking
+ *     tags: [Booking]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         example: 1
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - booking_date
+ *               - booking_time
+ *             properties:
+ *               booking_date:
+ *                 type: string
+ *                 example: 2026-09-15
+ *               booking_time:
+ *                 type: string
+ *                 example: 02:00 PM
+ *     responses:
+ *       200:
+ *         description: Booking rescheduled successfully
+ *       400:
+ *         description: Validation error
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Booking not found or cannot be rescheduled
+ *       500:
+ *         description: Internal Server Error
+ */
+
+router.put(
+"/reschedule/:id",
+
+authMiddleware,
+
+[
+    body("booking_date")
+        .notEmpty()
+        .withMessage("Booking date is required"),
+
+    body("booking_time")
+        .notEmpty()
+        .withMessage("Booking time is required")
+],
+
+validateRequest,
+
+    rescheduleCustomerBooking
+);
+
 
 module.exports = router;

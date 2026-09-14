@@ -1,14 +1,13 @@
 const swaggerJsDoc = require("swagger-jsdoc");
 
 const swaggerOptions = {
-    definition : {
+    definition: {
         openapi: "3.0.0",
 
         info: {
             title: "Urbino Help API",
-            version:"1.0.0",
-            description:"Backend APIs for Urbino Help Servie Marketplace",
-
+            version: "1.0.0",
+            description: "Backend APIs for Urbino Help Service Marketplace",
         },
 
         servers: [
@@ -19,18 +18,18 @@ const swaggerOptions = {
 
         components: {
             securitySchemes: {
-              bearerAuth: {
-                type: "http",
-                scheme: "bearer",
-                bearerFormat: "JWT",
+                bearerAuth: {
+                    type: "http",
+                    scheme: "bearer",
+                    bearerFormat: "JWT",
+                },
             },
         },
     },
 
-    },
-
-    apis: ["**/*.js"]
+    apis: ["./routes/*.js"],
 };
 
 const swaggerSpec = swaggerJsDoc(swaggerOptions);
+
 module.exports = swaggerSpec;

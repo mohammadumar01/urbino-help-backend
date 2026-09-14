@@ -22,6 +22,10 @@ const categoryRoutes = require("./routes/categoryRoutes");
 const serviceRoutes = require("./routes/serviceRoutes");
 const providerAvailabilityRoutes = require("./routes/providerAvailabilityRoutes");
 const providerAgentRoutes = require("./routes/providerAgentRoutes");
+const agentServiceRoutes = require("./routes/agentServiceRoutes");
+const chatbotRoutes = require("./routes/chatbotRoutes");
+const providerBookingRoutes = require("./routes/providerBookingRoutes");
+const serviceDiscoveryRoutes = require( "./routes/serviceDiscoveryRoutes");
 
 const app = express();
 
@@ -42,24 +46,32 @@ app.use("/api/admin",adminRoutes);
 app.use("/api/admin", adminVerificationRoutes);
 app.use("/api/agent",agentRoutes);
 app.use("/api/payment", paymentRoutes);
-app.use(
-    "/api/provider-verification",
-    providerVerificationRoutes
-);
+app.use( "/api/provider-verification",providerVerificationRoutes);
 
 app.use("/api/categories", categoryRoutes);
 app.use("/api/services", serviceRoutes);
 
-app.use(
-    "/api/provider-availability",
-    providerAvailabilityRoutes
-);
+app.use( "/api/provider-availability",  providerAvailabilityRoutes);
 
 app.use(
     "/api/provider-agents",
     providerAgentRoutes
 );
 
+app.use("/api/agent-services", agentServiceRoutes);
+
+
+app.use(
+    "/api/provider-bookings",
+    providerBookingRoutes
+);
+
+app.use("/api/chatbot", chatbotRoutes);
+
+app.use(
+    "/api/service-discovery",
+    serviceDiscoveryRoutes
+);
 
 app.get("/",(req,res) => {
     res.json({

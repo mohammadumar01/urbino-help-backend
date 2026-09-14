@@ -1,7 +1,8 @@
 const {
 createVerification,
 getVerificationByProvider,
-checkAadhaarExists
+checkAadhaarExists,
+checkDocumentExists
 } = require("../models/providerVerificationModel");
 
 
@@ -66,6 +67,19 @@ if(document_type !== "Aadhaar"){
 
 }
 
+const existingDocument = await checkDocumentExists(
+    provider_id,
+    document_type
+);
+
+if (existingDocument) {
+
+    return res.status(409).json({
+        success: false,
+        message: `${document_type} document already submitted`
+    });
+
+}
 
 const verification = await createVerification(
     provider_id,
@@ -73,7 +87,6 @@ const verification = await createVerification(
     document_number,
     document_url
 );
-
 
 return res.status(201).json({
 
@@ -83,12 +96,10 @@ return res.status(201).json({
 
 });
 
-
-
 }catch(error){
 
 return res.status(500).json({
-
+    
     success:false,
     message:error.message
 

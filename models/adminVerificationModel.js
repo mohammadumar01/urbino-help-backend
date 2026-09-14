@@ -20,7 +20,6 @@ const query = `
 
 
 const result = await pool.query(query);
-
 return result.rows;
 };
 
@@ -51,6 +50,7 @@ const query = `
         updated_at = CURRENT_TIMESTAMP
 
     WHERE id = $4::INTEGER
+    AND status = 'pending'
 
     RETURNING *;
 `;

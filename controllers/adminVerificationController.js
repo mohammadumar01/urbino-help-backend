@@ -114,6 +114,16 @@ const { id } = req.params;
 
 const { rejection_reason } = req.body;
 
+if (
+    !rejection_reason ||
+    !rejection_reason.trim()
+) {
+    return res.status(400).json({
+        success: false,
+        message: "Rejection reason is required"
+    });
+}
+
 
 const verification = await updateVerificationStatus(
     id,
