@@ -1,175 +1,266 @@
-# Urbino Help Backend API
+Urbino Help Backend API
 
-A production-oriented RESTful Backend API for an On-Demand Home Service Platform.
+A production-oriented RESTful backend for an on-demand home services platform.
 
-The application provides APIs for authentication, role-based access control, service discovery, customer and provider bookings, agent services, notifications, payments, reviews, Redis caching, AI-powered services, and administrative workflows.
+The API supports authentication and role-based access, customer and provider workflows, bookings, service and category management, provider availability, agent operations, payments, notifications, reviews, verification workflows, Redis caching, AI-assisted chatbot functionality, Swagger documentation, and Docker-based development.
 
-Built using Node.js, Express.js, PostgreSQL, Redis, and Docker.
+Built with Node.js, Express.js, PostgreSQL, Redis, OpenAI integration, and Docker.
 
----
+🚀 Key Capabilities
 
-## 🚀 Features
+Authentication & Access Control
 
-### Authentication & Authorization
+JWT-based authentication
 
-- JWT-based Authentication
-- Role-Based Authorization
-- Secure Password Hashing using bcrypt
-- Protected API Routes
-- Role-based access for Customers, Providers, Agents, and Admins
+Secure password hashing with bcryptjs
 
-### Booking Management
+Protected routes
 
-- Customer Booking Management
-- Provider Booking Management
-- Booking Status Management
-- Provider Booking Workflow
-- Agent Job Management
+Role-based authorization
 
-### Service Management
+Customer, Provider, Agent, and Admin workflows
 
-- Service Discovery
-- Provider Service Management
-- Provider Profile Management
-- Agent Service Management
+Customer, Provider & Agent Workflows
 
-### AI Features
+Customer management
 
-- AI Service Integration
-- AI-powered Chatbot
-- Service-related AI Assistance
+Provider management
 
-### Payment Management
+Agent management
 
-- Payment Management
-- Payment Status Tracking
-- Payment Validation
-- Duplicate Payment Prevention
-- Payment Success Notifications
+Provider-agent assignment workflows
 
-### Notifications
+Provider profile management
 
-- Customer Notifications
-- Booking-related Notifications
-- Payment Success Notifications
+Provider verification workflows
 
-### Reviews & Ratings
+Admin verification workflows
 
-- Customer Reviews
-- Provider Ratings
-- Review Management
+Booking Management
 
-### Performance & Caching
+Customer booking workflows
 
-- Redis Caching
-- Cache Hit/Miss Handling
-- Cache Invalidation
+Provider booking workflows
 
-### Data Management
+Booking status management
 
-- Pagination
-- Search
-- Filtering
-- Sorting
-- Soft Delete
-- Agent Restore
+Provider-side booking operations
 
-### API & Developer Tools
+Agent-related service workflows
 
-- RESTful API Architecture
-- Swagger API Documentation
-- Postman API Testing Support
+Service Management
 
-### Deployment & Development
+Category management
 
-- Docker Support
-- Docker Compose Support
-- PostgreSQL Container
-- Redis Container
-- Backend Containerization
+Service management
 
----
+Service discovery
 
-# 🛠 Tech Stack
+Provider service management
 
-| Technology | Purpose |
-|---|---|
-| Node.js | Backend Runtime |
-| Express.js | Web Framework |
-| PostgreSQL | Relational Database |
-| Redis | Caching |
-| JWT | Authentication |
-| bcryptjs | Password Hashing |
-| Swagger UI | API Documentation |
-| Docker | Containerization |
-| Docker Compose | Multi-container Application Setup |
-| Postman | API Testing |
-| Nodemon | Development Server |
+Agent service management
 
----
+Provider availability management
 
-# 📁 Project Structure
+Payments & Notifications
 
-```text
+Payment management
+
+Payment status handling
+
+Payment validation workflows
+
+Duplicate payment prevention logic
+
+Customer notifications
+
+Booking and payment-related notifications
+
+Reviews & Profiles
+
+Reviews and ratings
+
+User profile management
+
+Provider profile management
+
+AI Features
+
+OpenAI service integration
+
+AI-powered chatbot endpoints
+
+Service-related AI assistance
+
+Performance & Caching
+
+Redis integration
+
+Cache key management
+
+Cache utilities
+
+Cache hit/miss handling
+
+Cache invalidation support
+
+Developer Experience
+
+Swagger API documentation
+
+Express validation middleware
+
+Centralized error handling
+
+Docker and Docker Compose support
+
+Nodemon development workflow
+
+🛠 Tech Stack
+
+Technology
+
+Purpose
+
+Node.js
+
+JavaScript runtime
+
+Express.js
+
+Web framework
+
+PostgreSQL
+
+Primary relational database
+
+Redis
+
+Caching and fast data access
+
+JWT
+
+Authentication
+
+bcryptjs
+
+Password hashing
+
+OpenAI SDK
+
+AI service integration
+
+express-validator
+
+Request validation
+
+Swagger UI
+
+Interactive API documentation
+
+Docker
+
+Containerization
+
+Docker Compose
+
+Multi-container orchestration
+
+Nodemon
+
+Development server
+
+📁 Project Structure
+
+The structure below reflects the current codebase.
+
 urbino-help-backend/
 │
 ├── config/
+│   ├── cacheKeys.js
 │   ├── db.js
 │   ├── redis.js
-│   ├── cacheKeys.js
 │   └── swagger.js
 │
 ├── constants/
+│   ├── bookingStatus.js
 │   └── roles.js
 │
 ├── controllers/
+│   ├── adminController.js
+│   ├── adminVerificationController.js
+│   ├── agentController.js
+│   ├── agentServiceController.js
 │   ├── authController.js
 │   ├── bookingController.js
-│   ├── providerController.js
-│   ├── agentController.js
-│   ├── adminController.js
+│   ├── categoryController.js
+│   ├── chatbotController.js
+│   ├── customerController.js
 │   ├── notificationController.js
 │   ├── paymentController.js
+│   ├── profileController.js
+│   ├── providerAgentController.js
+│   ├── providerAvailabilityController.js
+│   ├── providerBookingController.js
+│   ├── providerController.js
 │   ├── providerProfileController.js
 │   ├── providerServiceController.js
+│   ├── providerVerificationController.js
 │   ├── reviewController.js
-│   ├── agentServiceController.js
-│   ├── chatbotController.js
-│   ├── providerBookingController.js
+│   ├── serviceController.js
 │   └── serviceDiscoveryController.js
 │
 ├── middleware/
 │   ├── authMiddleware.js
-│   └── roleMiddleware.js
+│   ├── errorMiddleware.js
+│   ├── roleMiddleware.js
+│   └── validationMiddleware.js
 │
 ├── models/
-│   ├── userModel.js
+│   ├── adminModel.js
+│   ├── adminVerificationModel.js
+│   ├── agentModel.js
+│   ├── agentServiceModel.js
 │   ├── bookingModel.js
+│   ├── categoryModel.js
+│   ├── customerModel.js
 │   ├── notificationModel.js
 │   ├── paymentModel.js
+│   ├── profileModel.js
+│   ├── providerAgentModel.js
+│   ├── providerAvailabilityModel.js
+│   ├── providerBookingModel.js
+│   ├── providerModel.js
 │   ├── providerProfileModel.js
 │   ├── providerServiceModel.js
+│   ├── providerVerificationModel.js
 │   ├── reviewModel.js
-│   ├── agentServiceModel.js
-│   ├── providerBookingModel.js
-│   └── serviceDiscoveryModel.js
+│   ├── serviceDiscoveryModel.js
+│   ├── serviceModel.js
+│   └── userModel.js
 │
 ├── routes/
+│   ├── adminRoutes.js
+│   ├── adminVerificationRoutes.js
+│   ├── agentRoutes.js
+│   ├── agentServiceRoutes.js
 │   ├── authRoutes.js
 │   ├── bookingRoutes.js
+│   ├── categoryRoutes.js
+│   ├── chatbotRoutes.js
 │   ├── customerRoutes.js
-│   ├── providerRoutes.js
-│   ├── agentRoutes.js
-│   ├── adminRoutes.js
 │   ├── notificationRoutes.js
 │   ├── paymentRoutes.js
-│   ├── providerProfileRoutes.js
-│   ├── providerServiceRoutes.js
-│   ├── reviewRoutes.js
-│   ├── agentServiceRoutes.js
-│   ├── chatbotRoutes.js
+│   ├── providerAgentRoutes.js
+│   ├── providerAvailabilityRoutes.js
 │   ├── providerBookingRoutes.js
-│   └── serviceDiscoveryRoutes.js
+│   ├── providerProfileRoutes.js
+│   ├── providerRoutes.js
+│   ├── providerServiceRoutes.js
+│   ├── providerVerificationRoutes.js
+│   ├── reviewRoutes.js
+│   ├── serviceDiscoveryRoutes.js
+│   └── serviceRoutes.js
 │
 ├── services/
 │   └── aiService.js
@@ -181,63 +272,86 @@ urbino-help-backend/
 ├── server.js
 ├── Dockerfile
 ├── docker-compose.yml
-├── .dockerignore
+├── database.sql
 ├── package.json
 ├── package-lock.json
-├── .env.example
+├── .dockerignore
 ├── .gitignore
 └── README.md
-```
 
----
+🏗 Architecture
 
-# ⚙️ Prerequisites
+The application follows a layered backend architecture:
 
-Make sure the following software is installed on your system:
+Client
+   │
+   ▼
+Express Routes
+   │
+   ▼
+Controllers
+   │
+   ├── Business Logic
+   └── Validation / Authorization
+   │
+   ▼
+Services
+   │
+   ▼
+Models
+   │
+   ├── PostgreSQL
+   └── Redis Cache
 
-- Node.js
-- npm
-- PostgreSQL
-- Redis
+This separation helps improve:
 
-For Docker-based setup:
+Maintainability
 
-- Docker
-- Docker Compose
+Scalability
 
----
+Separation of concerns
 
-# 📦 Installation
+Feature isolation
 
-## 1. Clone the Repository
+Easier debugging
 
-```bash
+Easier future expansion
+
+⚙️ Prerequisites
+
+For local development, install:
+
+Node.js
+
+npm
+
+PostgreSQL
+
+Redis
+
+For containerized development, install:
+
+Docker
+
+Docker Compose
+
+📦 Installation
+
+1. Clone the Repository
+
 git clone <repository-url>
-```
-
-Navigate to the project directory:
-
-```bash
 cd urbino-help-backend
-```
 
----
+2. Install Dependencies
 
-## 2. Install Dependencies
-
-```bash
 npm install
-```
 
----
+3. Configure Environment Variables
 
-## 3. Configure Environment Variables
-
-Create a `.env` file in the root directory.
+Create a .env file in the project root.
 
 Example:
 
-```env
 PORT=5500
 
 DB_HOST=localhost
@@ -251,259 +365,211 @@ JWT_SECRET=your_jwt_secret
 OPENAI_API_KEY=your_openai_api_key
 
 REDIS_URL=redis://127.0.0.1:6379
-```
 
-> ⚠️ Never commit `.env` files or production secrets to GitHub.
+Security note: Never commit .env files, API keys, passwords, or production credentials to source control.
 
----
+▶️ Running the Application
 
-# 🐳 Docker Setup
+Production-style Start
 
-The project can be run using Docker Compose.
+npm start
 
-The Docker setup includes:
+Development Mode
 
-- Backend API Container
-- PostgreSQL Container
-- Redis Container
+npm run dev
 
-## Start the Application
+By default, the application runs on:
 
-```bash
-docker compose up --build
-```
-
-Run containers in detached mode:
-
-```bash
-docker compose up --build -d
-```
-
----
-
-## Stop the Application
-
-```bash
-docker compose down
-```
-
-To stop containers and remove volumes:
-
-```bash
-docker compose down -v
-```
-
-> ⚠️ Removing volumes will delete Docker-managed PostgreSQL and Redis data.
-
----
-
-# 🌐 Application Access
-
-After starting the application:
-
-```text
-Backend API:
 http://localhost:5500
-```
 
----
+🐳 Docker Setup
 
-# 📚 API Documentation
+The project includes Docker configuration for running:
 
-Swagger API documentation is available when the application is running.
+Backend API
 
-```text
+PostgreSQL
+
+Redis
+
+Build and Start
+
+docker compose up --build
+
+Run in Detached Mode
+
+docker compose up --build -d
+
+Stop Containers
+
+docker compose down
+
+Stop and Remove Volumes
+
+docker compose down -v
+
+Warning: Removing Docker volumes can permanently delete Docker-managed PostgreSQL and Redis data.
+
+📚 API Documentation
+
+Swagger documentation is available when the application is running:
+
 http://localhost:5500/api-docs
-```
 
-The Swagger documentation provides:
+Swagger provides interactive documentation for available API endpoints, request parameters, request bodies, authentication requirements, and responses.
 
-- Available API Endpoints
-- Request Parameters
-- Request Bodies
-- Authentication Requirements
-- API Responses
-
----
-
-# 🔐 Authentication
+🔐 Authentication
 
 The API uses JWT-based authentication.
 
-After successful login, the API returns a JWT token.
+After a successful login, a JWT token is returned and should be sent with protected requests:
 
-Example response:
-
-```json
-{
-  "success": true,
-  "message": "Login successful",
-  "token": "your_jwt_token"
-}
-```
-
-Protected routes require the token in the Authorization header:
-
-```http
 Authorization: Bearer <your_jwt_token>
-```
 
----
+Authentication and authorization behavior is handled through middleware and role-based access controls.
 
-# 🗄 Database
+🗄 Database
 
-The application uses PostgreSQL as the primary relational database.
+PostgreSQL is used as the primary relational database.
 
-Database configuration is managed using environment variables.
+Database connectivity is configured through environment variables and the database configuration module.
 
-For Docker-based development, PostgreSQL runs as a separate container and communicates with the backend through the Docker network.
+When using Docker Compose, the backend communicates with PostgreSQL over the Docker network.
 
----
+⚡ Redis Caching
 
-# ⚡ Redis Caching
+Redis is integrated as the caching layer.
 
-Redis is used to improve application performance through caching.
+The project includes:
 
-The caching layer supports:
+Redis connection configuration
 
-- Cache Hit Handling
-- Cache Miss Handling
-- Cache Invalidation
-- Performance Optimization
+Cache key management
 
-When running through Docker Compose, Redis runs as a dedicated container.
+Cache utility functions
 
----
+Cache hit/miss handling
 
-# 🤖 AI Services
+Cache invalidation support
 
-The application includes AI-powered functionality through the service layer.
+When using Docker Compose, Redis runs as a dedicated container.
 
-Current AI-related modules include:
+🤖 AI Integration
 
-- AI Service Integration
-- Chatbot Functionality
-- Service Discovery Support
+The project includes an AI service layer and chatbot-related API endpoints.
 
-AI credentials should always be stored securely using environment variables.
+The current codebase contains:
 
----
+services/aiService.js
 
-# 🧪 API Testing
+controllers/chatbotController.js
 
-The APIs can be tested using:
+routes/chatbotRoutes.js
 
-- Swagger UI
-- Postman
+AI credentials should be provided through environment variables rather than hardcoded in source files.
 
-Make sure the backend server, PostgreSQL, and Redis services are running before testing dependent APIs.
+🧪 API Testing
 
----
+APIs can be tested using:
 
-# 🏗 Architecture
+Swagger UI
 
-The project follows a layered backend architecture:
+Postman or any HTTP client
 
-```text
-Client
-   │
-   ▼
-Routes
-   │
-   ▼
-Controllers
-   │
-   ▼
-Services / Business Logic
-   │
-   ▼
-Models
-   │
-   ▼
-PostgreSQL / Redis
-```
+Before testing database- or cache-dependent endpoints, ensure PostgreSQL and Redis are running.
 
-This separation helps maintain:
+🔒 Security Practices
 
-- Clean Code Structure
-- Scalability
-- Maintainability
-- Separation of Concerns
-- Easier Testing
-- Easier Feature Expansion
+The codebase includes or supports:
 
----
+Password hashing with bcryptjs
 
-# 🔒 Security Practices
+JWT authentication
 
-The application follows common backend security practices:
+Role-based authorization
 
-- Password Hashing using bcrypt
-- JWT Authentication
-- Role-Based Authorization
-- Environment-based Configuration
-- Secret Management through `.env`
-- Protected Routes
-- Sensitive Configuration excluded through `.gitignore`
+Protected routes
 
----
+Environment-based configuration
 
-# 🚀 Production Considerations
+Request validation middleware
 
-Before deploying to production, ensure that:
+Centralized error handling
 
-- Strong JWT secrets are used
-- Production database credentials are configured securely
-- Environment variables are managed through a secure secret manager
-- Docker images are properly versioned
-- Logging and monitoring are configured
-- Database backups are enabled
-- Redis persistence requirements are reviewed
-- API rate limiting and security middleware are configured where required
+.gitignore and .dockerignore configuration
 
----
+Recommended Production Hardening
 
-# 👨‍💻 Development
+Before production deployment, review and configure:
 
-Run the application locally:
+Strong JWT secrets
 
-```bash
-npm install
-npm start
-```
+Secure database credentials
 
-For development mode, use the project's configured development script if available:
+Secret management
 
-```bash
-npm run dev
-```
+HTTPS/TLS
 
----
+Rate limiting
 
-# 📝 Environment Variables
+Security headers
 
-| Variable | Description |
-|---|---|
-| PORT | Application Port |
-| DB_HOST | PostgreSQL Host |
-| DB_PORT | PostgreSQL Port |
-| DB_USER | PostgreSQL Username |
-| DB_PASSWORD | PostgreSQL Password |
-| DB_NAME | PostgreSQL Database Name |
-| JWT_SECRET | Secret Key for JWT Authentication |
-| OPENAI_API_KEY | OpenAI API Key |
-| REDIS_URL | Redis Connection URL |
+Logging and monitoring
 
----
+Database backups
 
-# 📌 Project Status
+Redis persistence requirements
+
+Container image versioning
+
+📝 Environment Variables
+
+Variable
+
+Description
+
+PORT
+
+Application port
+
+DB_HOST
+
+PostgreSQL host
+
+DB_PORT
+
+PostgreSQL port
+
+DB_USER
+
+PostgreSQL username
+
+DB_PASSWORD
+
+PostgreSQL password
+
+DB_NAME
+
+PostgreSQL database name
+
+JWT_SECRET
+
+Secret used to sign JWT tokens
+
+OPENAI_API_KEY
+
+API key used by the AI integration
+
+REDIS_URL
+
+Redis connection URL
+
+📌 Project Status
 
 The project is actively under development.
 
-The backend currently includes authentication, authorization, booking workflows, provider workflows, agent services, service discovery, notifications, payments, reviews, Redis caching, AI-powered features, Swagger documentation, and Docker-based development support.
+The current backend includes authentication, role-based access control, customer/provider/agent workflows, booking management, categories and services, provider availability, notifications, payments, reviews, verification workflows, Redis caching, AI-powered chatbot functionality, Swagger documentation, and Docker-based development support.
 
----
+📄 License
 
-# 📄 License
-
-This project is intended for internal development and organizational use unless otherwise specified.
+This repository is intended for organizational and internal development use unless otherwise specified.
