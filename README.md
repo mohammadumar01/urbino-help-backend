@@ -1,179 +1,132 @@
-Urbino Help Backend API
+# Urbino Help Backend API
 
-A production-oriented RESTful backend for an on-demand home services platform.
+A production-oriented RESTful Backend API for an On-Demand Home Service Platform.
 
-The API supports authentication and role-based access, customer and provider workflows, bookings, service and category management, provider availability, agent operations, payments, notifications, reviews, verification workflows, Redis caching, AI-assisted chatbot functionality, Swagger documentation, and Docker-based development.
+The application provides backend functionality for authentication, role-based access control, customer and provider workflows, booking management, agent services, service discovery, notifications, payments, reviews, Redis caching, AI-powered features, administrative operations, and Docker-based development.
 
-Built with Node.js, Express.js, PostgreSQL, Redis, OpenAI integration, and Docker.
+Built with **Node.js, Express.js, PostgreSQL, Redis, and Docker**.
 
-🚀 Key Capabilities
+---
 
-Authentication & Access Control
+## 🚀 Key Features
 
-JWT-based authentication
+### 🔐 Authentication & Authorization
 
-Secure password hashing with bcryptjs
+- JWT-based authentication
+- Secure password hashing using bcrypt
+- Protected API routes
+- Role-based authorization
+- Access control for different platform users
+- Authentication middleware
 
-Protected routes
+### 📅 Booking Management
 
-Role-based authorization
+- Customer booking workflows
+- Provider booking workflows
+- Booking status management
+- Booking-related operations
+- Provider availability support
 
-Customer, Provider, Agent, and Admin workflows
+### 👨‍🔧 Provider & Agent Management
 
-Customer, Provider & Agent Workflows
+- Provider management
+- Provider profile management
+- Provider service management
+- Provider verification workflows
+- Provider-agent management
+- Agent management
+- Agent service management
 
-Customer management
+### 🔎 Service Management
 
-Provider management
+- Service management
+- Category management
+- Service discovery
+- Provider service workflows
 
-Agent management
+### 🤖 AI Features
 
-Provider-agent assignment workflows
+- AI service integration
+- AI-powered chatbot functionality
+- AI-assisted service-related interactions
 
-Provider profile management
+### 💳 Payment Management
 
-Provider verification workflows
+- Payment processing workflows
+- Payment status tracking
+- Payment validation
+- Duplicate payment prevention
+- Payment-related notifications
 
-Admin verification workflows
+### 🔔 Notifications
 
-Booking Management
+- Customer notifications
+- Booking-related notifications
+- Payment-related notifications
+- Notification management
 
-Customer booking workflows
+### ⭐ Reviews & Ratings
 
-Provider booking workflows
+- Review management
+- Provider ratings
+- Customer feedback workflows
 
-Booking status management
+### ⚡ Performance & Caching
 
-Provider-side booking operations
+- Redis integration
+- Cache hit handling
+- Cache miss handling
+- Cache invalidation
+- Cache utility support
 
-Agent-related service workflows
+### 🗑 Data Management
 
-Service Management
+- Pagination
+- Search
+- Filtering
+- Sorting
+- Soft delete support
+- Restore workflows
 
-Category management
+### 📚 API & Developer Tools
 
-Service management
+- RESTful API architecture
+- Swagger API documentation
+- Postman API testing support
 
-Service discovery
+### 🐳 Containerization
 
-Provider service management
-
-Agent service management
-
-Provider availability management
-
-Payments & Notifications
-
-Payment management
-
-Payment status handling
-
-Payment validation workflows
-
-Duplicate payment prevention logic
-
-Customer notifications
-
-Booking and payment-related notifications
-
-Reviews & Profiles
-
-Reviews and ratings
-
-User profile management
-
-Provider profile management
-
-AI Features
-
-OpenAI service integration
-
-AI-powered chatbot endpoints
-
-Service-related AI assistance
-
-Performance & Caching
-
-Redis integration
-
-Cache key management
-
-Cache utilities
-
-Cache hit/miss handling
-
-Cache invalidation support
-
-Developer Experience
-
-Swagger API documentation
-
-Express validation middleware
-
-Centralized error handling
-
-Docker and Docker Compose support
-
-Nodemon development workflow
-
-🛠 Tech Stack
-
-Technology
-
-Purpose
-
-Node.js
-
-JavaScript runtime
-
-Express.js
-
-Web framework
-
-PostgreSQL
-
-Primary relational database
-
-Redis
-
-Caching and fast data access
-
-JWT
-
-Authentication
-
-bcryptjs
-
-Password hashing
-
-OpenAI SDK
-
-AI service integration
-
-express-validator
-
-Request validation
-
-Swagger UI
-
-Interactive API documentation
-
-Docker
-
-Containerization
-
-Docker Compose
-
-Multi-container orchestration
-
-Nodemon
-
-Development server
-
-📁 Project Structure
-
-The structure below reflects the current codebase.
-
+- Docker support
+- Docker Compose support
+- Backend containerization
+- PostgreSQL container support
+- Redis container support
+
+---
+
+# 🛠 Tech Stack
+
+| Technology | Purpose |
+|---|---|
+| Node.js | JavaScript Runtime |
+| Express.js | Backend Web Framework |
+| PostgreSQL | Relational Database |
+| Redis | Caching |
+| JWT | Authentication |
+| bcryptjs | Password Hashing |
+| Swagger UI | API Documentation |
+| Docker | Containerization |
+| Docker Compose | Multi-container Application Setup |
+| Postman | API Testing |
+| Nodemon | Development Server |
+
+---
+
+# 📁 Project Structure
+
+The structure below reflects the current codebase organization.
+
+```text
 urbino-help-backend/
 │
 ├── config/
@@ -277,80 +230,96 @@ urbino-help-backend/
 ├── package.json
 ├── package-lock.json
 └── README.md
+```
 
-🏗 Architecture
+---
 
-The application follows a layered backend architecture:
+# 🏗 Architecture
 
+The project follows a layered backend architecture to maintain separation of concerns and improve maintainability.
+
+```text
 Client
    │
    ▼
-Express Routes
+Routes
+   │
+   ▼
+Middleware
    │
    ▼
 Controllers
    │
-   ├── Business Logic
-   └── Validation / Authorization
-   │
    ▼
-Services
+Services / Business Logic
    │
    ▼
 Models
    │
-   ├── PostgreSQL
-   └── Redis Cache
+   ▼
+PostgreSQL / Redis
+```
 
-This separation helps improve:
+This architecture helps provide:
 
-Maintainability
+- Better separation of concerns
+- Improved maintainability
+- Easier debugging
+- Better scalability
+- Cleaner code organization
+- Easier feature expansion
 
-Scalability
+---
 
-Separation of concerns
+# ⚙️ Prerequisites
 
-Feature isolation
+Make sure the following software is installed on your system.
 
-Easier debugging
+### Local Development
 
-Easier future expansion
+- Node.js
+- npm
+- PostgreSQL
+- Redis
 
-⚙️ Prerequisites
+### Docker-Based Development
 
-For local development, install:
+- Docker
+- Docker Compose
 
-Node.js
+---
 
-npm
+# 📦 Installation
 
-PostgreSQL
+## 1. Clone the Repository
 
-Redis
-
-For containerized development, install:
-
-Docker
-
-Docker Compose
-
-📦 Installation
-
-1. Clone the Repository
-
+```bash
 git clone <repository-url>
+```
+
+Navigate to the project directory:
+
+```bash
 cd urbino-help-backend
+```
 
-2. Install Dependencies
+---
 
+## 2. Install Dependencies
+
+```bash
 npm install
+```
 
-3. Configure Environment Variables
+---
 
-Create a .env file in the project root.
+## 3. Configure Environment Variables
 
-Example:
+Create a `.env` file in the root directory of the project.
 
+Example configuration:
+
+```env
 PORT=5500
 
 DB_HOST=localhost
@@ -364,211 +333,406 @@ JWT_SECRET=your_jwt_secret
 OPENAI_API_KEY=your_openai_api_key
 
 REDIS_URL=redis://127.0.0.1:6379
+```
 
-Security note: Never commit .env files, API keys, passwords, or production credentials to source control.
+> ⚠️ Never commit `.env` files, API keys, passwords, tokens, or production secrets to version control.
 
-▶️ Running the Application
+---
 
-Production-style Start
+# ▶️ Running the Application
 
+Start the application using the configured project script:
+
+```bash
 npm start
+```
 
-Development Mode
+For development mode:
 
+```bash
 npm run dev
+```
 
-By default, the application runs on:
+---
 
-http://localhost:5500
+# 🐳 Docker Setup
 
-🐳 Docker Setup
+The project supports containerized development using Docker and Docker Compose.
 
-The project includes Docker configuration for running:
+The Docker environment includes support for:
 
-Backend API
+- Backend API
+- PostgreSQL
+- Redis
 
-PostgreSQL
+## Build and Start Containers
 
-Redis
-
-Build and Start
-
+```bash
 docker compose up --build
+```
 
-Run in Detached Mode
+Run containers in detached mode:
 
+```bash
 docker compose up --build -d
+```
 
-Stop Containers
+---
 
+## Stop Containers
+
+```bash
 docker compose down
+```
 
-Stop and Remove Volumes
+To stop containers and remove associated Docker volumes:
 
+```bash
 docker compose down -v
+```
 
-Warning: Removing Docker volumes can permanently delete Docker-managed PostgreSQL and Redis data.
+> ⚠️ Removing Docker volumes may delete Docker-managed database and cache data.
 
-📚 API Documentation
+---
 
-Swagger documentation is available when the application is running:
+# 🌐 Application Access
 
-http://localhost:5500/api-docs
+After starting the backend successfully, the application runs on the configured application port.
 
-Swagger provides interactive documentation for available API endpoints, request parameters, request bodies, authentication requirements, and responses.
+Example:
 
-🔐 Authentication
+```text
+http://localhost:<PORT>
+```
 
-The API uses JWT-based authentication.
+The default port depends on your environment configuration.
 
-After a successful login, a JWT token is returned and should be sent with protected requests:
+---
 
+# 📚 API Documentation
+
+The project includes Swagger API documentation.
+
+Once the application is running, API documentation can be accessed from the configured Swagger route.
+
+Swagger documentation provides information about:
+
+- Available API endpoints
+- Request methods
+- Request parameters
+- Request bodies
+- Authentication requirements
+- API responses
+
+---
+
+# 🔐 Authentication
+
+The API uses JWT-based authentication for protected resources.
+
+After successful authentication, the client receives an access token.
+
+Protected endpoints require the JWT token to be sent through the request headers.
+
+Example:
+
+```http
 Authorization: Bearer <your_jwt_token>
+```
 
-Authentication and authorization behavior is handled through middleware and role-based access controls.
+Role-based middleware is used to restrict access to authorized users and roles.
 
-🗄 Database
+---
 
-PostgreSQL is used as the primary relational database.
+# 🗄 Database
 
-Database connectivity is configured through environment variables and the database configuration module.
+The application uses **PostgreSQL** as its primary relational database.
 
-When using Docker Compose, the backend communicates with PostgreSQL over the Docker network.
+Database configuration is managed through environment variables.
 
-⚡ Redis Caching
+The application contains separate model modules responsible for database operations across multiple domains, including:
 
-Redis is integrated as the caching layer.
+- Users
+- Customers
+- Providers
+- Agents
+- Bookings
+- Categories
+- Services
+- Payments
+- Notifications
+- Reviews
+- Profiles
+- Verification workflows
+- Provider availability
+- Provider services
+- Agent services
+- Service discovery
 
-The project includes:
+For Docker-based development, PostgreSQL can run as a separate container.
 
-Redis connection configuration
+---
 
-Cache key management
+# ⚡ Redis Caching
 
-Cache utility functions
+Redis is integrated to improve application performance through caching.
 
-Cache hit/miss handling
+The caching layer supports workflows such as:
 
-Cache invalidation support
+- Cache retrieval
+- Cache hit handling
+- Cache miss handling
+- Cache invalidation
+- Performance optimization
 
-When using Docker Compose, Redis runs as a dedicated container.
+Caching-related configuration and utilities are separated into dedicated modules.
 
-🤖 AI Integration
+```text
+config/
+├── redis.js
+└── cacheKeys.js
 
-The project includes an AI service layer and chatbot-related API endpoints.
+utils/
+└── cacheUtils.js
+```
 
-The current codebase contains:
+---
 
-services/aiService.js
+# 🤖 AI Services
 
-controllers/chatbotController.js
+The application includes AI-powered functionality through the service layer.
 
-routes/chatbotRoutes.js
+The current AI-related implementation includes:
 
-AI credentials should be provided through environment variables rather than hardcoded in source files.
+- AI service integration
+- Chatbot functionality
+- AI-assisted service interactions
 
-🧪 API Testing
+AI-related business logic is organized separately:
 
-APIs can be tested using:
+```text
+services/
+└── aiService.js
+```
 
-Swagger UI
+AI credentials and API keys should always be managed using secure environment variables.
 
-Postman or any HTTP client
+---
 
-Before testing database- or cache-dependent endpoints, ensure PostgreSQL and Redis are running.
+# 📅 Booking Workflows
 
-🔒 Security Practices
+The platform supports multiple booking-related workflows.
 
-The codebase includes or supports:
+The booking architecture includes dedicated modules for:
 
-Password hashing with bcryptjs
+- Customer bookings
+- Provider bookings
+- Booking status management
+- Provider booking operations
+- Agent-related workflows
 
-JWT authentication
+Booking logic is separated across:
 
-Role-based authorization
+```text
+controllers/
+├── bookingController.js
+└── providerBookingController.js
 
-Protected routes
+models/
+├── bookingModel.js
+└── providerBookingModel.js
 
-Environment-based configuration
+routes/
+├── bookingRoutes.js
+└── providerBookingRoutes.js
+```
 
-Request validation middleware
+---
 
-Centralized error handling
+# 👨‍🔧 Provider & Agent Workflows
 
-.gitignore and .dockerignore configuration
+The backend includes dedicated functionality for provider and agent management.
 
-Recommended Production Hardening
+Supported areas include:
 
-Before production deployment, review and configure:
+- Provider management
+- Provider profiles
+- Provider services
+- Provider verification
+- Provider availability
+- Provider-agent relationships
+- Agent management
+- Agent services
 
-Strong JWT secrets
+This separation allows different platform workflows to remain modular and maintainable.
 
-Secure database credentials
+---
 
-Secret management
+# 🔎 Service Discovery
 
-HTTPS/TLS
+The platform includes dedicated service discovery functionality.
 
-Rate limiting
+The service-related architecture includes modules for:
 
-Security headers
+- Categories
+- Services
+- Provider services
+- Service discovery
+- Agent services
 
-Logging and monitoring
+Relevant modules are separated into controllers, models, and routes to maintain a consistent backend structure.
 
-Database backups
+---
 
-Redis persistence requirements
+# 💳 Payment Management
 
-Container image versioning
+The backend contains dedicated payment functionality for handling payment-related workflows.
 
-📝 Environment Variables
+Supported areas include:
 
-Variable
+- Payment management
+- Payment status tracking
+- Payment validation
+- Duplicate payment prevention
+- Payment-related notification workflows
 
-Description
+Payment functionality is organized using separate controller, model, and route modules.
 
-PORT
+---
 
-Application port
+# 🔔 Notifications
 
-DB_HOST
+The application supports notification workflows for platform events.
 
-PostgreSQL host
+Notification-related functionality includes:
 
-DB_PORT
+- Customer notifications
+- Booking-related notifications
+- Payment-related notifications
+- Notification management
 
-PostgreSQL port
+---
 
-DB_USER
+# ⭐ Reviews & Ratings
 
-PostgreSQL username
+The backend provides functionality for customer feedback and provider reviews.
 
-DB_PASSWORD
+Supported areas include:
 
-PostgreSQL password
+- Review management
+- Provider ratings
+- Customer feedback workflows
 
-DB_NAME
+---
 
-PostgreSQL database name
+# 🧪 API Testing
 
-JWT_SECRET
+The APIs can be tested using tools such as:
 
-Secret used to sign JWT tokens
+- Swagger UI
+- Postman
 
-OPENAI_API_KEY
+Before testing APIs that depend on external services, ensure that the following services are running correctly:
 
-API key used by the AI integration
+- Backend server
+- PostgreSQL
+- Redis
 
-REDIS_URL
+---
 
-Redis connection URL
+# 🔒 Security Practices
 
-📌 Project Status
+The project follows common backend security practices, including:
+
+- Password hashing using bcrypt
+- JWT-based authentication
+- Role-based authorization
+- Protected routes
+- Environment-based configuration
+- Secret management through environment variables
+- Sensitive configuration excluded through `.gitignore`
+
+For production deployments, secrets should be managed using a secure secret management solution.
+
+---
+
+# 🚀 Production Considerations
+
+Before deploying the application to production, consider the following:
+
+- Use strong JWT secrets
+- Store production credentials securely
+- Use a production-grade environment configuration strategy
+- Manage secrets through a secure secret manager
+- Configure proper logging
+- Configure monitoring and alerting
+- Enable database backups
+- Review Redis persistence requirements
+- Configure API rate limiting where required
+- Configure additional security middleware where required
+- Version Docker images properly
+- Use appropriate production database configurations
+- Configure error handling and monitoring
+
+---
+
+# 👨‍💻 Development Guidelines
+
+When adding new functionality, follow the existing layered structure where applicable:
+
+```text
+Route
+  ↓
+Middleware
+  ↓
+Controller
+  ↓
+Service / Business Logic
+  ↓
+Model
+  ↓
+Database
+```
+
+Recommended practices:
+
+- Keep route definitions focused on routing
+- Keep business logic organized in controllers or services
+- Keep database queries isolated in models
+- Reuse middleware where possible
+- Avoid committing secrets
+- Maintain consistent naming conventions
+- Keep modules focused on a specific responsibility
+
+---
+
+# 📌 Project Status
 
 The project is actively under development.
 
-The current backend includes authentication, role-based access control, customer/provider/agent workflows, booking management, categories and services, provider availability, notifications, payments, reviews, verification workflows, Redis caching, AI-powered chatbot functionality, Swagger documentation, and Docker-based development support.
+The backend currently includes functionality and infrastructure for:
 
-📄 License
+- Authentication and authorization
+- Customer workflows
+- Provider workflows
+- Agent workflows
+- Booking management
+- Provider booking management
+- Service management
+- Service discovery
+- Category management
+- Payment workflows
+- Notifications
+- Reviews and ratings
+- Provider verification
+- Administrative workflows
+- Redis caching
+- AI-powered functionality
+- Swagger API documentation
+- Docker-based development
 
-This repository is intended for organizational and internal development use unless otherwise specified.
+---
+
+# 📄 License
+
+This project is intended for development and organizational use unless otherwise specified.
