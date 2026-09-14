@@ -272,11 +272,10 @@ urbino-help-backend/
 ├── server.js
 ├── Dockerfile
 ├── docker-compose.yml
-├── database.sql
-├── package.json
-├── package-lock.json
 ├── .dockerignore
 ├── .gitignore
+├── package.json
+├── package-lock.json
 └── README.md
 
 🏗 Architecture
