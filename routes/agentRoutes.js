@@ -5,6 +5,7 @@ const router = express.Router();
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
 const uploadAgentDocument = require("../middleware/uploadMiddleware");
+const jobs = require("../controllers/agentJobController");
 
 const {
   getAssignedJobs,
@@ -76,7 +77,7 @@ router.put(
   "/accept/:id",
   authMiddleware,
   roleMiddleware(ROLES.AGENT),
-  acceptAssignedJob
+  jobs.acceptJob
 );
 
 /**
@@ -110,7 +111,7 @@ router.put(
   "/on-the-way/:id",
   authMiddleware,
   roleMiddleware(ROLES.AGENT),
-  onTheWay
+  jobs.onTheWay
 );
 
 /**
@@ -144,7 +145,7 @@ router.put(
   "/start/:id",
   authMiddleware,
   roleMiddleware(ROLES.AGENT),
-  startAssignedJob
+  jobs.startJob
 );
 
 /**
@@ -178,7 +179,7 @@ router.put(
   "/complete/:id",
   authMiddleware,
   roleMiddleware(ROLES.AGENT),
-  completeAssignedJob
+  jobs.completeJob
 );
 
 /**
@@ -300,5 +301,35 @@ router.post(
   uploadAgentDocument.single("document"),
   uploadMyAgentDocument
 );
+
+const agentOnly = [authMiddleware, roleMiddleware(ROLES.AGENT)];
+
+/**
+ * @swagger
+ * /api/agent/jobs:
+ *   get:
+ *     summary: My jobs grouped (new | active | done | all), soonest first
+ *     tags: [Agent]
+ *     security: [{ bearerAuth: [] }]
+ * /api/agent/summary:
+ *   get:
+ *     summary: Counts for the agent home screen
+ *     tags: [Agent]
+ *     security: [{ bearerAuth: [] }]
+ * /api/agent/jobs/{id}:
+ *   get:
+ *     summary: One job with customer, provider, timeline and payment
+ *     tags: [Agent]
+ *     security: [{ bearerAuth: [] }]
+ * /api/agent/decline/{id}:
+ *   put:
+ *     summary: Decline an assigned job (goes back to the provider). Body { reason }
+ *     tags: [Agent]
+ *     security: [{ bearerAuth: [] }]
+ */
+router.get("/jobs", ...agentOnly, jobs.listJobs);
+router.get("/summary", ...agentOnly, jobs.getSummary);
+router.get("/jobs/:id", ...agentOnly, jobs.getJob);
+router.put("/decline/:id", ...agentOnly, jobs.declineJob);
 
 module.exports = router;

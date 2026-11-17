@@ -246,10 +246,19 @@ const getMyBookings = async (provider_id) => {
             b.created_at,
             b.price,
             pay.payment_status,
-            pay.payment_method
+            pay.payment_method,
+            ag.name AS agent_name,
+            ag.phone AS agent_phone,
+            b.provider_accepted_at,
+            b.agent_accepted_at,
+            b.on_the_way_at,
+            b.started_at,
+            b.completed_at,
+            b.agent_declined_reason
         FROM bookings b
         JOIN users u
             ON b.customer_id = u.id
+        LEFT JOIN users ag ON ag.id = b.agent_id
         LEFT JOIN LATERAL (
             SELECT payment_status, payment_method
             FROM payments

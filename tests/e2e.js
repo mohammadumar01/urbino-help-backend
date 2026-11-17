@@ -112,10 +112,36 @@ const tomorrow = new Date(Date.now() + 86400000 + 5.5 * 3600000).toISOString().s
     check("provider assigns agent", r.status === 200, r.data);
     r = await call("GET", "/api/agent/my-jobs", aT);
     check("agent sees job", r.status === 200 && (r.data.jobs || []).some((j) => j.id === bookingId), r.data);
-    for (const step of ["accept", "on-the-way", "start"]) {
-      r = await call("PUT", `/api/agent/${step}/${bookingId}`, aT);
-      check(`agent ${step}`, r.status === 200, r.data);
-    }
+    // ---------- agent job flow (OTP start + tracking) ----------
+    r = await call("GET", "/api/agent/summary", aT);
+    check("agent summary counts new job", r.status === 200 && r.data.summary.new >= 1, r.data);
+    r = await call("GET", "/api/agent/jobs?group=new", aT);
+    check("agent new jobs list", r.status === 200 && r.data.jobs.some((j) => j.id === bookingId), r.data);
+    r = await call("PUT", `/api/agent/start/${bookingId}`, aT, { otp: "0000" });
+    check("cannot start before accepting", r.status === 409, r.data);
+    r = await call("PUT", `/api/agent/accept/${bookingId}`, aT);
+    check("agent accept", r.status === 200 && r.data.job.status === "agent_accepted", r.data);
+    r = await call("PUT", `/api/agent/accept/${bookingId}`, aT);
+    check("double accept rejected", r.status === 409, r.data);
+    r = await call("GET", "/api/booking/my-bookings", cT);
+    const otp = r.data.bookings?.find((b) => b.id === bookingId)?.start_otp;
+    check("customer sees 4-digit start code", /^\d{4}$/.test(otp || ""), r.data.bookings?.[0]);
+    r = await call("GET", `/api/agent/jobs/${bookingId}`, aT);
+    check("agent never sees the start code", r.status === 200 && !("start_otp" in r.data.job), r.data);
+    r = await call("PUT", `/api/agent/on-the-way/${bookingId}`, aT);
+    check("agent on-the-way", r.status === 200, r.data);
+    r = await call("GET", "/api/provider/my-bookings", pT);
+    const tracked = r.data.bookings?.find((b) => b.id === bookingId);
+    check("provider tracks agent (name + on-the-way time)", tracked?.agent_name === "E2E agent" && !!tracked?.on_the_way_at, tracked);
+    r = await call("GET", "/api/notifications", pT);
+    check("provider notified of agent progress", JSON.stringify(r.data).includes("Agent left"), r.data);
+    const wrongOtp = otp === "1111" ? "2222" : "1111";
+    r = await call("PUT", `/api/agent/start/${bookingId}`, aT, { otp: wrongOtp });
+    check("wrong start code rejected", r.status === 400, r.data);
+    r = await call("PUT", `/api/agent/start/${bookingId}`, aT, { otp });
+    check("agent starts with customer's code", r.status === 200 && r.data.job.status === "in_progress", r.data);
+    r = await call("GET", "/api/booking/my-bookings", cT);
+    check("start code hidden after start", !r.data.bookings?.find((b) => b.id === bookingId)?.start_otp, r.data.bookings?.[0]);
     r = await call("PUT", `/api/booking/cancel/${bookingId}`, cT);
     check("cannot cancel in-progress booking", r.status === 409, r.data);
     r = await call("PUT", `/api/agent/complete/${bookingId}`, aT);
@@ -223,6 +249,19 @@ const tomorrow = new Date(Date.now() + 86400000 + 5.5 * 3600000).toISOString().s
     check("admin dashboard", r.status === 200, r.data);
     r = await call("GET", "/api/admin/dashboard", cT);
     check("customer blocked from admin", r.status === 403, r.data);
+
+    // agent declines -> back to provider
+    r = await call("POST", "/api/booking/create", cT, { service_id: service.id, address: "Decline Lane", booking_date: tomorrow, booking_time: "17:00", provider_id: providerId });
+    const dBooking = r.data.booking.id;
+    await call("PUT", `/api/provider-bookings/accept/${dBooking}`, pT);
+    await call("PUT", `/api/provider/assign-agent/${dBooking}`, pT, { agent_id: agent.id });
+    r = await call("PUT", `/api/agent/decline/${dBooking}`, aT, { reason: "" });
+    check("decline needs a reason", r.status === 400, r.data);
+    r = await call("PUT", `/api/agent/decline/${dBooking}`, aT, { reason: "Too far from my area" });
+    check("agent declines job", r.status === 200, r.data);
+    r = await call("GET", "/api/provider/my-bookings", pT);
+    const declined = r.data.bookings?.find((b) => b.id === dBooking);
+    check("declined job back with provider, reason shown", declined?.status === "provider_accepted" && declined?.agent_declined_reason === "Too far from my area", declined);
 
     // ---------- provider onboarding (Step 3) ----------
     r = await call("PUT", "/api/provider-profile/profile", pT, { service_area: "Kota", experience_years: 99 });

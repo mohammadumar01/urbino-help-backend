@@ -107,7 +107,14 @@ const getBookingsByCustomerId = async (customer_id, limit, offset, search, statu
             r.rating AS review_rating,
             pay.payment_status,
             pay.payment_method,
-            pay.paid_at
+            pay.paid_at,
+            b.provider_accepted_at,
+            b.agent_assigned_at,
+            b.agent_accepted_at,
+            b.on_the_way_at,
+            b.started_at,
+            -- Start code sirf tab dikhao jab professional confirm ho chuka ho aur kaam shuru na hua ho
+            CASE WHEN b.status IN ('agent_accepted', 'on_the_way') THEN b.start_otp END AS start_otp
         FROM bookings b
         LEFT JOIN users p ON p.id = b.provider_id
         LEFT JOIN users a ON a.id = b.agent_id
