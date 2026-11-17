@@ -4,94 +4,57 @@ const router = express.Router();
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
 const ROLES = require("../constants/roles");
+const { createDocumentUpload } = require("../middleware/uploadMiddleware");
+const c = require("../controllers/providerVerificationController");
 
-
-const {
-    submitVerification,
-    getMyVerification
-} = require("../controllers/providerVerificationController");
-
-
+const upload = createDocumentUpload("provider-documents");
 
 /**
  * @swagger
- * /api/provider-verification:
- *   post:
- *     summary: Submit provider verification documents
- *     tags: [Provider Verification]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - document_type
- *               - document_url
- *             properties:
- *               document_type:
- *                 type: string
- *                 example: Aadhaar
- *               document_number:
- *                 type: string
- *                 example: XXXX-XXXX-1234
- *               document_url:
- *                 type: string
- *                 example: https://example.com/aadhaar-image.jpg
- *     responses:
- *       201:
- *         description: Verification submitted successfully
- *       400:
- *         description: Required fields missing
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Provider access only
- *       500:
- *         description: Internal Server Error
+ * tags:
+ *   name: Provider Verification
+ *   description: Provider KYC documents
  */
-
-
-router.post(
-    "/",
-    authMiddleware,
-    roleMiddleware(ROLES.PROVIDER),
-    submitVerification
-);
-
-
-
-
 
 /**
  * @swagger
  * /api/provider-verification:
  *   get:
- *     summary: Get provider verification status
+ *     summary: My documents and their review status (numbers masked)
  *     tags: [Provider Verification]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Verification status fetched successfully
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Provider access only
- *       500:
- *         description: Internal Server Error
+ *     security: [{ bearerAuth: [] }]
+ *   post:
+ *     summary: Upload a document (Aadhaar first). Re-upload allowed only after rejection.
+ *     tags: [Provider Verification]
+ *     security: [{ bearerAuth: [] }]
+ *     requestBody:
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required: [document, document_type]
+ *             properties:
+ *               document: { type: string, format: binary }
+ *               document_type: { type: string, enum: [Aadhaar, PAN, Driving License, Skill Certificate, Experience Proof, Address Proof] }
+ *               document_number: { type: string }
  */
-
-
-router.get(
+router.get("/", authMiddleware, roleMiddleware(ROLES.PROVIDER), c.getMyVerification);
+router.post(
     "/",
     authMiddleware,
     roleMiddleware(ROLES.PROVIDER),
-    getMyVerification
+    upload.single("document"),
+    c.submitVerification
 );
 
-
+/**
+ * @swagger
+ * /api/provider-verification/{id}/file:
+ *   get:
+ *     summary: View an uploaded document (its provider or an admin)
+ *     tags: [Provider Verification]
+ *     security: [{ bearerAuth: [] }]
+ */
+router.get("/:id/file", authMiddleware, roleMiddleware(ROLES.PROVIDER, ROLES.ADMIN), c.viewDocumentFile);
 
 module.exports = router;

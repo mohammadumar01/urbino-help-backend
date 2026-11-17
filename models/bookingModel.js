@@ -22,6 +22,7 @@ const getServiceForBooking = async (service_id, provider_id) => {
         LEFT JOIN provider_services ps
             ON ps.service_id = s.id
            AND ps.provider_id = $2
+           AND ps.is_active
         LEFT JOIN users u
             ON u.id = ps.provider_id
            AND u.role = 'provider'
@@ -192,8 +193,17 @@ const cancelBooking = async (booking_id, customer_id) => {
     return { reason: "not_cancellable", status: existing.rows[0].status };
 };
 
+const getCustomerBooking = async (booking_id, customer_id) => {
+    const result = await pool.query(
+        "SELECT id, provider_id, status, booking_date, left(booking_time, 5) AS booking_time FROM bookings WHERE id = $1 AND customer_id = $2",
+        [booking_id, customer_id]
+    );
+    return result.rows[0];
+};
+
 module.exports = {
     CANCELLABLE,
+    getCustomerBooking,
     getServiceForBooking,
     createBooking,
     getBookingsByCustomerId,

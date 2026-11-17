@@ -1,30 +1,13 @@
-
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const crypto = require("crypto");
 
-// Store documents outside the public/static folder.
-const uploadDir = path.join(
-  process.cwd(),
-  "private_uploads",
-  "agent-documents"
-);
-
-fs.mkdirSync(uploadDir, { recursive: true });
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-
-  filename: (req, file, cb) => {
-    const extension = path.extname(file.originalname).toLowerCase();
-    const uniqueName = `${crypto.randomUUID()}${extension}`;
-
-    cb(null, uniqueName);
-  },
-});
+/**
+ * Private document uploads (ID proofs). Files public/static folder se bahar
+ * private_uploads/<folder>/ mein jaate hain aur sirf authorised API se dikhte hain.
+ */
+const ROOT = path.join(process.cwd(), "private_uploads");
 
 const allowedTypes = {
   "application/pdf": [".pdf"],
@@ -32,26 +15,46 @@ const allowedTypes = {
   "image/png": [".png"],
 };
 
-const fileFilter = (req, file, cb) => {
-  const extension = path.extname(file.originalname).toLowerCase();
-  const validExtensions = allowedTypes[file.mimetype] || [];
+function createDocumentUpload(folder) {
+  const uploadDir = path.join(ROOT, folder);
+  fs.mkdirSync(uploadDir, { recursive: true });
 
-  if (!validExtensions.includes(extension)) {
-    return cb(
-      new Error("Only PDF, JPG, JPEG and PNG files are allowed.")
-    );
-  }
+  const storage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, uploadDir),
+    filename: (req, file, cb) => {
+      const extension = path.extname(file.originalname).toLowerCase();
+      cb(null, `${crypto.randomUUID()}${extension}`);
+    },
+  });
 
-  cb(null, true);
-};
+  const fileFilter = (req, file, cb) => {
+    const extension = path.extname(file.originalname).toLowerCase();
+    const validExtensions = allowedTypes[file.mimetype] || [];
+    if (!validExtensions.includes(extension)) {
+      const err = new Error("Only PDF, JPG, JPEG and PNG files are allowed.");
+      err.statusCode = 400;
+      return cb(err);
+    }
+    cb(null, true);
+  };
 
-const uploadAgentDocument = multer({
-  storage,
-  fileFilter,
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5 MB
-    files: 1,
-  },
-});
+  return multer({
+    storage,
+    fileFilter,
+    limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+  });
+}
+
+/** Stored path (relative to private_uploads) ko absolute banao; folder se bahar na jaaye. */
+function resolvePrivateFile(storedPath) {
+  const full = path.resolve(ROOT, String(storedPath || ""));
+  if (!full.startsWith(ROOT + path.sep)) return null;
+  return full;
+}
+
+const uploadAgentDocument = createDocumentUpload("agent-documents");
 
 module.exports = uploadAgentDocument;
+module.exports.createDocumentUpload = createDocumentUpload;
+module.exports.resolvePrivateFile = resolvePrivateFile;
+module.exports.PRIVATE_ROOT = ROOT;

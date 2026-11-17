@@ -1,180 +1,109 @@
 const {
-    createProviderProfile,
     getProviderProfile,
-    updateProviderProfile,
-    getPublicProviderProfile
+    upsertProviderProfile,
+    getPublicProviderProfile,
+    getOnboardingStatus,
 } = require("../models/providerProfileModel");
 
+function bad(res, status, message) {
+    return res.status(status).json({ success: false, message });
+}
 
-// CREATE PROVIDER PROFILE
-const createProfile = async (req, res) => {
+/** Body ko validate + saaf karo. Error ho to { error } lautao. */
+function cleanProfile(body) {
+    const str = (v, max) => (v == null ? null : String(v).trim().slice(0, max) || null);
+    const bio = str(body.bio, 1000);
+    const skills = str(body.skills, 500);
+    const service_area = str(body.service_area, 255);
+    const experience_years = body.experience_years === "" || body.experience_years == null ? 0 : Number(body.experience_years);
+    const hourly_rate = body.hourly_rate === "" || body.hourly_rate == null ? null : Number(body.hourly_rate);
+    const profile_image = str(body.profile_image, 500);
+
+    if (!service_area) return { error: "Service area is required (for example: Kota, Jaipur)." };
+    if (!Number.isInteger(experience_years) || experience_years < 0 || experience_years > 60) {
+        return { error: "Experience must be a whole number between 0 and 60." };
+    }
+    if (hourly_rate != null && (!Number.isFinite(hourly_rate) || hourly_rate <= 0 || hourly_rate > 100000)) {
+        return { error: "Hourly rate must be between ₹1 and ₹1,00,000." };
+    }
+    if (profile_image && !/^https:\/\/[^\s]+$/i.test(profile_image)) {
+        return { error: "Profile image must be an https:// link." };
+    }
+    return { data: { bio, skills, service_area, experience_years, hourly_rate, profile_image } };
+}
+
+/** POST aur PUT /api/provider-profile/profile dono: create ya update. */
+const saveProfile = async (req, res, next) => {
     try {
-
-        const providerId = req.user.id;
-
-        const {
-            bio,
-            experience_years,
-            skills,
-            service_area,
-            hourly_rate,
-            profile_image
-        } = req.body;
-
-        const existingProfile = await getProviderProfile(providerId);
-
-        if (existingProfile) {
-            return res.status(400).json({
-                success: false,
-                message: "Provider profile already exists"
-            });
-        }
-
-        const profile = await createProviderProfile(
-            providerId,
-            bio,
-            experience_years,
-            skills,
-            service_area,
-            hourly_rate,
-            profile_image
-        );
-
-        res.status(201).json({
-            success: true,
-            message: "Provider profile created successfully",
-            profile
-        });
-
+        const { data, error } = cleanProfile(req.body || {});
+        if (error) return bad(res, 400, error);
+        await upsertProviderProfile(req.user.id, data);
+        // naam/email ke saath poora profile lautao
+        const profile = await getProviderProfile(req.user.id);
+        return res.status(200).json({ success: true, message: "Profile saved", profile });
     } catch (error) {
-
-        console.error("Create Provider Profile Error:", error);
-
-        res.status(500).json({
-            success: false,
-            message: "Internal Server Error"
-        });
+        next(error);
     }
 };
 
-
-// GET PROVIDER PROFILE
-const getProfile = async (req, res) => {
+/** GET /api/provider-profile/profile -> profile ya null (naya provider) */
+const getProfile = async (req, res, next) => {
     try {
-
-        const providerId = req.user.id;
-
-        const profile = await getProviderProfile(providerId);
-
-        if (!profile) {
-            return res.status(404).json({
-                success: false,
-                message: "Provider profile not found"
-            });
-        }
-
-        res.status(200).json({
-            success: true,
-            profile
-        });
-
+        const profile = await getProviderProfile(req.user.id);
+        return res.status(200).json({ success: true, profile: profile || null });
     } catch (error) {
-
-        console.error("Get Provider Profile Error:", error);
-
-        res.status(500).json({
-            success: false,
-            message: "Internal Server Error"
-        });
+        next(error);
     }
 };
 
-
-// UPDATE PROVIDER PROFILE
-const updateProfile = async (req, res) => {
+/** GET /api/provider-profile/onboarding -> kya kya baaki hai */
+const getOnboarding = async (req, res, next) => {
     try {
-
-        const providerId = req.user.id;
-
-        const {
-            bio,
-            experience_years,
-            skills,
-            service_area,
-            hourly_rate,
-            profile_image
-        } = req.body;
-
-        const existingProfile = await getProviderProfile(providerId);
-
-        if (!existingProfile) {
-            return res.status(404).json({
-                success: false,
-                message: "Provider profile not found"
-            });
-        }
-
-        const profile = await updateProviderProfile(
-            providerId,
-            bio,
-            experience_years,
-            skills,
-            service_area,
-            hourly_rate,
-            profile_image
-        );
-
-        res.status(200).json({
+        const s = await getOnboardingStatus(req.user.id);
+        const steps = [
+            { key: "profile", label: "Complete your profile", done: !!s.profile?.service_area },
+            { key: "services", label: "Add services and prices", done: s.active_services > 0 },
+            { key: "availability", label: "Set your working hours", done: s.availability_slots > 0 },
+            {
+                key: "documents",
+                label: "Upload Aadhaar for verification",
+                done: s.documents > 0,
+                status: s.approved_documents > 0 ? "approved" : s.rejected_documents > 0 ? "rejected" : s.documents > 0 ? "pending" : "missing",
+            },
+            { key: "agents", label: "Add your team (optional)", done: s.agents > 0, optional: true },
+        ];
+        const required = steps.filter((x) => !x.optional);
+        return res.status(200).json({
             success: true,
-            message: "Provider profile updated successfully",
-            profile
+            verified: !!s.profile?.is_verified,
+            completed: required.filter((x) => x.done).length,
+            total: required.length,
+            visible_to_customers: !!s.profile?.service_area && s.active_services > 0,
+            steps,
+            counts: s,
         });
-
     } catch (error) {
-
-        console.error("Update Provider Profile Error:", error);
-
-        res.status(500).json({
-            success: false,
-            message: "Internal Server Error"
-        });
+        next(error);
     }
 };
 
-// GET PUBLIC PROVIDER PROFILE
-const getPublicProfile = async (req, res) => {
+const getPublicProfile = async (req, res, next) => {
     try {
-
-        const providerId = req.params.id;
-
-        const profile = await getPublicProviderProfile(providerId);
-
-        if (!profile) {
-            return res.status(404).json({
-                success: false,
-                message: "Provider profile not found"
-            });
-        }
-
-        res.status(200).json({
-            success: true,
-            profile
-        });
-
+        const id = Number(req.params.id);
+        if (!Number.isInteger(id) || id <= 0) return bad(res, 400, "Invalid provider id");
+        const profile = await getPublicProviderProfile(id);
+        if (!profile) return bad(res, 404, "Provider profile not found");
+        return res.status(200).json({ success: true, profile });
     } catch (error) {
-
-        console.error("Get Public Provider Profile Error:", error);
-
-        res.status(500).json({
-            success: false,
-            message: "Internal Server Error"
-        });
+        next(error);
     }
 };
 
 module.exports = {
-    createProfile,
+    createProfile: saveProfile,
+    updateProfile: saveProfile,
+    saveProfile,
     getProfile,
-    updateProfile,
-    getPublicProfile
+    getOnboarding,
+    getPublicProfile,
 };

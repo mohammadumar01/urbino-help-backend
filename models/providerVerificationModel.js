@@ -166,7 +166,42 @@ const checkDocumentExists = async (
 
 };
 
+/**
+ * Uploaded document save karo. Pehle se rejected ho to usi row ko naye file
+ * se replace karke dobara "pending" karo.
+ */
+const saveUploadedDocument = async ({ provider_id, document_type, document_number, document_path, original_name, mime_type }) => {
+    const result = await pool.query(
+        `
+        INSERT INTO provider_verifications
+            (provider_id, document_type, document_number, document_url, document_original_name, document_mime_type, status)
+        VALUES ($1, $2, $3, $4, $5, $6, 'pending')
+        ON CONFLICT (provider_id, document_type) DO UPDATE SET
+            document_number = EXCLUDED.document_number,
+            document_url = EXCLUDED.document_url,
+            document_original_name = EXCLUDED.document_original_name,
+            document_mime_type = EXCLUDED.document_mime_type,
+            status = 'pending',
+            rejection_reason = NULL,
+            verified_by = NULL,
+            verified_at = NULL,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE provider_verifications.status = 'rejected'
+        RETURNING *
+        `,
+        [provider_id, document_type, document_number, document_path, original_name, mime_type]
+    );
+    return result.rows[0];
+};
+
+const getVerificationById = async (id) => {
+    const result = await pool.query("SELECT * FROM provider_verifications WHERE id = $1", [id]);
+    return result.rows[0];
+};
+
 module.exports = {
+saveUploadedDocument,
+getVerificationById,
 createVerification,
 getVerificationByProvider,
 getPendingVerifications,

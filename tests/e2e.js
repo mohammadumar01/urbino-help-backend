@@ -224,6 +224,70 @@ const tomorrow = new Date(Date.now() + 86400000 + 5.5 * 3600000).toISOString().s
     r = await call("GET", "/api/admin/dashboard", cT);
     check("customer blocked from admin", r.status === 403, r.data);
 
+    // ---------- provider onboarding (Step 3) ----------
+    r = await call("PUT", "/api/provider-profile/profile", pT, { service_area: "Kota", experience_years: 99 });
+    check("profile rejects bad experience", r.status === 400, r.data);
+    r = await call("PUT", "/api/provider-profile/profile", pT, { service_area: "Kota, Jaipur", experience_years: 4, hourly_rate: 350, bio: "Updated" });
+    check("profile upsert", r.status === 200 && r.data.profile.experience_years === 4, r.data);
+    r = await call("GET", "/api/provider-profile/onboarding", pT);
+    check("onboarding checklist", r.status === 200 && r.data.steps.find((s) => s.key === "services")?.done === true, r.data);
+
+    r = await call("PUT", `/api/provider-services/${service.id}`, pT, { price: -5 });
+    check("service price validated", r.status === 400, r.data);
+    r = await call("PUT", `/api/provider-services/${service.id}`, pT, { price: 888 });
+    check("service price updated", r.status === 200 && Number(r.data.service.price) === 888, r.data);
+    r = await call("PUT", `/api/provider-services/${service.id}`, pT, { is_active: false });
+    r = await call("GET", `/api/service-discovery/providers?service_id=${service.id}`);
+    check("paused service hidden from discovery", !r.data.providers.some((p) => p.provider_id === providerId), r.data);
+    r = await call("POST", "/api/booking/create", cT, { service_id: service.id, address: "Paused", booking_date: tomorrow, booking_time: "12:00", provider_id: providerId });
+    check("cannot book paused service", r.status === 400, r.data);
+    await call("PUT", `/api/provider-services/${service.id}`, pT, { is_active: true });
+
+    const day = new Date(`${tomorrow}T00:00:00Z`).toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" });
+    r = await call("PUT", "/api/provider-availability", pT, { schedule: [{ day_of_week: day, start_time: "12:00", end_time: "15:00" }, { day_of_week: day, start_time: "14:00", end_time: "16:00" }] });
+    check("overlapping hours rejected", r.status === 400, r.data);
+    r = await call("PUT", "/api/provider-availability", pT, { schedule: [{ day_of_week: day, start_time: "12:00", end_time: "15:00" }] });
+    check("weekly schedule saved", r.status === 200 && r.data.availability.length === 1, r.data);
+    r = await call("GET", `/api/provider-availability/slots?provider_id=${providerId}&date=${tomorrow}`);
+    check("public slots", r.status === 200 && JSON.stringify(r.data.slots) === JSON.stringify(["12:00", "13:00", "14:00"]), r.data);
+    r = await call("POST", "/api/booking/create", cT, { service_id: service.id, address: "Late", booking_date: tomorrow, booking_time: "18:00", provider_id: providerId });
+    check("booking outside working hours rejected", r.status === 409, r.data);
+    r = await call("POST", "/api/booking/create", cT, { service_id: service.id, address: "Slot", booking_date: tomorrow, booking_time: "13:00", provider_id: providerId });
+    check("booking inside slot works with new price", r.status === 201 && Number(r.data.booking.price) === 888, r.data);
+    r = await call("GET", `/api/provider-availability/slots?provider_id=${providerId}&date=${tomorrow}`);
+    check("booked slot no longer offered", !r.data.slots.includes("13:00"), r.data);
+    r = await call("POST", "/api/booking/create", cT, { service_id: service.id, address: "Double", booking_date: tomorrow, booking_time: "13:00", provider_id: providerId });
+    check("same slot cannot be double-booked", r.status === 409, r.data);
+
+    // documents (multipart upload)
+    const upload = async (token, fields, file) => {
+      const fd = new FormData();
+      for (const [k, v] of Object.entries(fields)) fd.append(k, v);
+      if (file) fd.append("document", new Blob([file.body], { type: file.type }), file.name);
+      const res = await fetch(B + "/api/provider-verification", { method: "POST", headers: { Authorization: `Bearer ${token}`, Origin: "http://localhost:3100" }, body: fd });
+      return { status: res.status, data: await res.json().catch(() => ({})) };
+    };
+    const png = { body: Buffer.from("89504e470d0a1a0a", "hex"), type: "image/png", name: "aadhaar.png" };
+    r = await upload(pT, { document_type: "PAN", document_number: "ABCDE1234F" }, png);
+    check("PAN before Aadhaar rejected", r.status === 400, r.data);
+    r = await upload(pT, { document_type: "Aadhaar", document_number: "1234" }, png);
+    check("bad Aadhaar number rejected", r.status === 400, r.data);
+    r = await upload(pT, { document_type: "Aadhaar", document_number: "1234 5678 9012" }, { body: "x", type: "text/plain", name: "a.txt" });
+    check("non-image file rejected", r.status === 400, r.data);
+    r = await upload(pT, { document_type: "Aadhaar", document_number: "1234 5678 9012" }, png);
+    check("Aadhaar uploaded, number masked", r.status === 201 && r.data.verification.document_number.endsWith("9012") && !r.data.verification.document_number.includes("1234"), r.data);
+    const docId = r.data.verification?.id;
+    r = await upload(pT, { document_type: "Aadhaar", document_number: "1234 5678 9012" }, png);
+    check("duplicate Aadhaar while pending rejected", r.status === 409, r.data);
+    const fileRes = await fetch(`${B}/api/provider-verification/${docId}/file`, { headers: { Authorization: `Bearer ${pT}` } });
+    check("provider can view own file", fileRes.status === 200 && fileRes.headers.get("content-type") === "image/png");
+    const custFile = await fetch(`${B}/api/provider-verification/${docId}/file`, { headers: { Authorization: `Bearer ${cT}` } });
+    check("customer cannot view provider file", custFile.status === 403);
+    const adminFile = await fetch(`${B}/api/provider-verification/${docId}/file`, { headers: { Authorization: `Bearer ${adT}` } });
+    check("admin can view provider file", adminFile.status === 200);
+    const { rows: [doc] } = await pool.query("SELECT document_url FROM provider_verifications WHERE id = $1", [docId]);
+    require("fs").rmSync(require("path").join(__dirname, "..", "private_uploads", doc.document_url), { force: true });
+
     // deleted user cannot log in
     await pool.query("UPDATE users SET is_deleted = true WHERE id = $1", [agent.id]);
     check("deleted user login blocked", !(await login(agent.email)));

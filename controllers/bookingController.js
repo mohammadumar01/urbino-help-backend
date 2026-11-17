@@ -7,10 +7,12 @@ const {
     getTotalBookingsByCustomerId,
     cancelBooking,
     rescheduleBooking,
+    getCustomerBooking,
 } = require("../models/bookingModel");
 const { createNotification } = require("../models/notificationModel");
 const { clearCustomerBookingCache } = require("../utils/cacheUtils");
 const { refundForBooking } = require("../services/paymentService");
+const { getFreeSlots } = require("../services/availabilityService");
 
 function todayIso() {
     // India time (IST) ke hisaab se aaj ki date
@@ -69,6 +71,18 @@ const createCustomerBooking = async (req, res, next) => {
             finalServiceId = service.id;
             finalServiceName = service.name;
             price = service.provider_price ?? service.base_price;
+        }
+
+        // Provider ne working hours set kiye hain to sirf free slot par booking
+        if (provider_id) {
+            const { hasSchedule, slots } = await getFreeSlots(Number(provider_id), booking_date);
+            if (hasSchedule && !slots.includes(String(booking_time).slice(0, 5))) {
+                return res.status(409).json({
+                    success: false,
+                    message: "This time slot is not available. Please pick another time.",
+                    available_slots: slots,
+                });
+            }
         }
 
         const booking = await createBooking({
@@ -195,6 +209,19 @@ const rescheduleCustomerBooking = async (req, res, next) => {
         const dateError = validateDateTime(booking_date, booking_time);
         if (dateError) {
             return res.status(400).json({ success: false, message: dateError });
+        }
+
+        const current = await getCustomerBooking(Number(req.params.id), req.user.id);
+        if (current?.provider_id) {
+            const { hasSchedule, slots } = await getFreeSlots(current.provider_id, booking_date);
+            const sameSlot = current.booking_date === booking_date && current.booking_time === String(booking_time).slice(0, 5);
+            if (hasSchedule && !sameSlot && !slots.includes(String(booking_time).slice(0, 5))) {
+                return res.status(409).json({
+                    success: false,
+                    message: "This time slot is not available. Please pick another time.",
+                    available_slots: slots,
+                });
+            }
         }
 
         const booking = await rescheduleBooking(

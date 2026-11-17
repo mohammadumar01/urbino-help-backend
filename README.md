@@ -359,6 +359,20 @@ npm run migrate
 - **Without Razorpay keys** (development) a built-in test gateway is used, so the full flow
   works without real money. In production without keys only cash is offered.
 
+## Provider onboarding
+
+| Endpoint | Purpose |
+|---|---|
+| `GET/PUT /api/provider-profile/profile` | Read / create-or-update own profile (service area required) |
+| `GET /api/provider-profile/onboarding` | Checklist: profile, services, hours, documents, team |
+| `GET/POST /api/provider-services`, `PUT/DELETE /api/provider-services/:serviceId` | Offer services, set price, pause/resume, remove |
+| `GET/PUT /api/provider-availability` | Weekly working hours (whole week saved at once, overlaps rejected) |
+| `GET /api/provider-availability/slots?provider_id&date` | Public: free 1-hour slots. Bookings are only accepted in a free slot when the provider has hours set |
+| `POST /api/provider-verification` (multipart `document`) | Upload KYC document (Aadhaar first). Stored in `private_uploads/`, numbers masked in responses, re-upload only after rejection |
+| `GET /api/provider-verification/:id/file` | View the file (owning provider or admin) |
+
+Paused services are hidden from discovery and cannot be booked.
+
 ## Tests
 
 ```bash

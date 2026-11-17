@@ -1,252 +1,90 @@
-const {
-createAvailability,
-getProviderAvailability,
-getAvailableSlots
-} = require("../models/providerAvailabilityModel");
+const m = require("../models/providerAvailabilityModel");
+const { validateSchedule, getFreeSlots } = require("../services/availabilityService");
 
-
-// CREATE PROVIDER AVAILABILITY
-const createProviderAvailability = async (req, res) => {
-
-try {
-
-    const providerId = req.user.id;
-
-    const {
-        day_of_week,
-        start_time,
-        end_time
-    } = req.body;
-
-
-    if (!day_of_week || !start_time || !end_time) {
-
-        return res.status(400).json({
-            success: false,
-            message: "day_of_week, start_time and end_time are required"
-        });
-
-    }
-
-
-    const validDays = [
-        "Monday",
-        "Tuesday",
-        "Wednesday",
-        "Thursday",
-        "Friday",
-        "Saturday",
-        "Sunday"
-    ];
-
-
-    if (!validDays.includes(day_of_week)) {
-
-        return res.status(400).json({
-            success: false,
-            message: "Invalid day_of_week"
-        });
-
-    }
-
-
-    if (start_time >= end_time) {
-
-        return res.status(400).json({
-            success: false,
-            message: "start_time must be before end_time"
-        });
-
-    }
-
-
-    const availability = await createAvailability(
-        providerId,
-        day_of_week,
-        start_time,
-        end_time
-    );
-
-
-    return res.status(201).json({
-
-        success: true,
-
-        message: "Provider availability created successfully",
-
-        availability
-
-    });
-
-
-} catch (error) {
-
-    console.error(
-        "Create Provider Availability Error:",
-        error
-    );
-
-    return res.status(500).json({
-
-        success: false,
-
-        message: "Internal Server Error"
-
-    });
-
+function bad(res, status, message) {
+    return res.status(status).json({ success: false, message });
 }
 
-};
-
-
-
-// GET PROVIDER AVAILABILITY
-const getMyAvailability = async (req, res) => {
-
-try {
-
-    const providerId = req.user.id;
-
-
-    const availability =
-        await getProviderAvailability(providerId);
-
-
-    return res.status(200).json({
-
-        success: true,
-
-        availability
-
-    });
-
-
-} catch (error) {
-
-    console.error(
-        "Get Provider Availability Error:",
-        error
-    );
-
-    return res.status(500).json({
-
-        success: false,
-
-        message: "Internal Server Error"
-
-    });
-
-}
-
-};
-
-// GET AVAILABLE SLOTS
-const getAvailableProviderSlots = async (req, res) => {
-
+const getMyAvailability = async (req, res, next) => {
     try {
-
-        const {
-            provider_id,
-            date
-        } = req.query;
-
-
-        if (!provider_id || !date) {
-
-            return res.status(400).json({
-                success: false,
-                message: "provider_id and date are required"
-            });
-
-        }
-
-
-        const availabilityData = await getAvailableSlots(
-            provider_id,
-            date
-        );
-
-
-        if (!availabilityData.length) {
-
-            return res.status(200).json({
-                success: true,
-                provider_id,
-                date,
-                slots: []
-            });
-
-        }
-
-
-        const slots = [];
-
-
-        for (const availability of availabilityData) {
-
-            let startHour = parseInt(
-                availability.start_time.split(":")[0]
-            );
-
-            const endHour = parseInt(
-                availability.end_time.split(":")[0]
-            );
-
-
-            while (startHour < endHour) {
-
-                const slot = `${String(startHour).padStart(2, "0")}:00`;
-
-                const isBooked = availabilityData.some(
-                    item =>
-                        item.booking_time &&
-                        item.booking_time.startsWith(slot)
-                );
-
-
-                if (!isBooked) {
-                    slots.push(slot);
-                }
-
-
-                startHour++;
-            }
-        }
-
-
-        return res.status(200).json({
-
-            success: true,
-            provider_id,
-            date,
-            slots
-
-        });
-
-
+        const availability = await m.getProviderAvailability(req.user.id);
+        res.status(200).json({ success: true, availability });
     } catch (error) {
-
-        console.error(
-            "Get Available Slots Error:",
-            error
-        );
-
-        return res.status(500).json({
-
-            success: false,
-
-            message: "Internal Server Error"
-
-        });
-
+        next(error);
     }
+};
 
+/** PUT /api/provider-availability { schedule: [{ day_of_week, start_time, end_time }] } */
+const replaceMyAvailability = async (req, res, next) => {
+    try {
+        const schedule = (req.body?.schedule || []).map((r) => ({
+            day_of_week: r?.day_of_week,
+            start_time: String(r?.start_time || "").slice(0, 5),
+            end_time: String(r?.end_time || "").slice(0, 5),
+        }));
+        const error = validateSchedule(schedule);
+        if (error) return bad(res, 400, error);
+        const availability = await m.replaceSchedule(req.user.id, schedule);
+        res.status(200).json({ success: true, message: "Working hours saved", availability });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/** POST /api/provider-availability { day_of_week, start_time, end_time }  (ek range jodo) */
+const createProviderAvailability = async (req, res, next) => {
+    try {
+        const range = {
+            day_of_week: req.body?.day_of_week,
+            start_time: String(req.body?.start_time || "").slice(0, 5),
+            end_time: String(req.body?.end_time || "").slice(0, 5),
+        };
+        const existing = await m.getProviderAvailability(req.user.id);
+        const error = validateSchedule([...existing, range]);
+        if (error) return bad(res, 400, error);
+        const availability = await m.createAvailability(req.user.id, range.day_of_week, range.start_time, range.end_time);
+        res.status(201).json({ success: true, message: "Working hours added", availability });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const deleteMyAvailability = async (req, res, next) => {
+    try {
+        const row = await m.deleteAvailability(req.user.id, Number(req.params.id));
+        if (!row) return bad(res, 404, "Time range not found");
+        res.status(200).json({ success: true, message: "Time range removed" });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/** GET /api/provider-availability/slots?provider_id=&date=YYYY-MM-DD  (public) */
+const getAvailableProviderSlots = async (req, res, next) => {
+    try {
+        const providerId = Number(req.query.provider_id);
+        const date = String(req.query.date || "");
+        if (!Number.isInteger(providerId) || providerId <= 0 || !/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(date))) {
+            return bad(res, 400, "provider_id and date (YYYY-MM-DD) are required");
+        }
+        const { hasSchedule, slots, slotMinutes } = await getFreeSlots(providerId, date);
+        res.status(200).json({
+            success: true,
+            provider_id: providerId,
+            date,
+            has_schedule: hasSchedule,
+            slot_minutes: slotMinutes,
+            slots,
+        });
+    } catch (error) {
+        next(error);
+    }
 };
 
 module.exports = {
-
-createProviderAvailability,
-getMyAvailability,
-getAvailableProviderSlots
-
+    getMyAvailability,
+    replaceMyAvailability,
+    createProviderAvailability,
+    deleteMyAvailability,
+    getAvailableProviderSlots,
 };

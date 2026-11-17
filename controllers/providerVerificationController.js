@@ -1,157 +1,127 @@
+const fs = require("fs");
+const path = require("path");
 const {
-createVerification,
-getVerificationByProvider,
-checkAadhaarExists,
-checkDocumentExists
+    saveUploadedDocument,
+    getVerificationByProvider,
+    getVerificationById,
+    checkAadhaarExists,
 } = require("../models/providerVerificationModel");
+const { resolvePrivateFile, PRIVATE_ROOT } = require("../middleware/uploadMiddleware");
 
+const DOCUMENT_TYPES = ["Aadhaar", "PAN", "Driving License", "Skill Certificate", "Experience Proof", "Address Proof"];
 
-// Provider Submit Verification
-
-const submitVerification = async (req,res) => {
-
-try {
-
-const provider_id = req.user.id;
-
-const {
-    document_type,
-    document_number,
-    document_url
-} = req.body;
-  
-const allowedDocuments = [
-    "Aadhaar",
-    "PAN",
-    "Driving License",
-    "Skill Certificate",
-    "Experience Proof",
-    "Address Proof"
-];
-
-
-if(!allowedDocuments.includes(document_type)){
-
-    return res.status(400).json({
-        success:false,
-        message:"Invalid document type"
-    });
-
+function bad(res, status, message) {
+    return res.status(status).json({ success: false, message });
 }
 
-if(!document_type || !document_url){
-
-    return res.status(400).json({
-        success:false,
-        message:"Document type and document url are required"
-    });
-
+function removeUpload(file) {
+    if (file?.path) fs.promises.unlink(file.path).catch(() => {});
 }
 
-if(document_type !== "Aadhaar"){
+/** Aadhaar / PAN jaisa number poora kabhi wapas mat bhejo. */
+function mask(num) {
+    if (!num) return null;
+    const s = String(num).replace(/\s+/g, "");
+    return s.length <= 4 ? "••••" : `${"•".repeat(Math.min(8, s.length - 4))}${s.slice(-4)}`;
+}
 
-    const aadhaar = await checkAadhaarExists(provider_id);
+function view(v) {
+    return {
+        id: v.id,
+        document_type: v.document_type,
+        document_number: mask(v.document_number),
+        file_name: v.document_original_name || null,
+        has_file: !!v.document_original_name,
+        status: v.status,
+        rejection_reason: v.rejection_reason,
+        verified_at: v.verified_at,
+        created_at: v.created_at,
+        updated_at: v.updated_at,
+    };
+}
 
+function validNumber(type, num) {
+    const n = String(num || "").replace(/\s+/g, "").toUpperCase();
+    if (type === "Aadhaar") return /^\d{12}$/.test(n) ? n : null;
+    if (type === "PAN") return /^[A-Z]{5}\d{4}[A-Z]$/.test(n) ? n : null;
+    return n ? n.slice(0, 50) : "";
+}
 
-    if(!aadhaar){
+/**
+ * POST /api/provider-verification  (multipart: document=<file>, document_type, document_number)
+ */
+const submitVerification = async (req, res, next) => {
+    try {
+        const { document_type } = req.body;
+        if (!req.file) return bad(res, 400, "Please attach the document (PDF, JPG or PNG, max 5 MB)");
+        if (!DOCUMENT_TYPES.includes(document_type)) {
+            removeUpload(req.file);
+            return bad(res, 400, "Invalid document type");
+        }
 
-        return res.status(400).json({
+        const number = validNumber(document_type, req.body.document_number);
+        if (number === null) {
+            removeUpload(req.file);
+            return bad(res, 400, document_type === "Aadhaar" ? "Aadhaar number must be 12 digits" : "PAN must look like ABCDE1234F");
+        }
 
-            success:false,
+        if (document_type !== "Aadhaar" && !(await checkAadhaarExists(req.user.id))) {
+            removeUpload(req.file);
+            return bad(res, 400, "Please upload your Aadhaar first. It is required for verification.");
+        }
 
-            message:"First upload Aadhaar card. Aadhaar is mandatory."
-
+        const saved = await saveUploadedDocument({
+            provider_id: req.user.id,
+            document_type,
+            document_number: number || null,
+            document_path: path.relative(PRIVATE_ROOT, req.file.path).split(path.sep).join("/"),
+            original_name: req.file.originalname.slice(0, 200),
+            mime_type: req.file.mimetype,
         });
 
+        if (!saved) {
+            removeUpload(req.file);
+            return bad(res, 409, `${document_type} is already submitted. You can upload again only if it is rejected.`);
+        }
+
+        return res.status(201).json({
+            success: true,
+            message: "Document uploaded. Our team will review it within 24-48 hours.",
+            verification: view(saved),
+        });
+    } catch (error) {
+        removeUpload(req.file);
+        next(error);
     }
-
-}
-
-const existingDocument = await checkDocumentExists(
-    provider_id,
-    document_type
-);
-
-if (existingDocument) {
-
-    return res.status(409).json({
-        success: false,
-        message: `${document_type} document already submitted`
-    });
-
-}
-
-const verification = await createVerification(
-    provider_id,
-    document_type,
-    document_number,
-    document_url
-);
-
-return res.status(201).json({
-
-    success:true,
-    message:"Verification submitted successfully",
-    verification
-
-});
-
-}catch(error){
-
-return res.status(500).json({
-    
-    success:false,
-    message:error.message
-
-});
-
-}
-
 };
 
-
-
-// Provider Check Verification Status
-
-const getMyVerification = async(req,res)=>{
-
-try{
-
-const provider_id = req.user.id;
-
-
-const verification =
-    await getVerificationByProvider(provider_id);
-
-
-
-return res.status(200).json({
-
-    success:true,
-    verification
-
-});
-
-
-
-}catch(error){
-
-return res.status(500).json({
-
-    success:false,
-    message:error.message
-
-});
-
-}
-
+const getMyVerification = async (req, res, next) => {
+    try {
+        const rows = await getVerificationByProvider(req.user.id);
+        return res.status(200).json({ success: true, document_types: DOCUMENT_TYPES, verification: rows.map(view) });
+    } catch (error) {
+        next(error);
+    }
 };
 
+/** GET /api/provider-verification/:id/file  (us document ka provider ya admin) */
+const viewDocumentFile = async (req, res, next) => {
+    try {
+        const v = await getVerificationById(Number(req.params.id));
+        const allowed = v && (req.user.role === "admin" || v.provider_id === req.user.id);
+        if (!allowed) return bad(res, 404, "Document not found");
 
+        const full = v.document_original_name ? resolvePrivateFile(v.document_url) : null;
+        if (!full || !fs.existsSync(full)) return bad(res, 404, "No uploaded file for this document");
 
-module.exports = {
-
-submitVerification,
-getMyVerification
-
+        res.setHeader("Content-Type", v.document_mime_type || "application/octet-stream");
+        res.setHeader("Content-Disposition", `inline; filename="${encodeURIComponent(v.document_original_name)}"`);
+        res.setHeader("Cache-Control", "private, no-store");
+        res.setHeader("X-Content-Type-Options", "nosniff");
+        return fs.createReadStream(full).pipe(res);
+    } catch (error) {
+        next(error);
+    }
 };
+
+module.exports = { submitVerification, getMyVerification, viewDocumentFile, DOCUMENT_TYPES };

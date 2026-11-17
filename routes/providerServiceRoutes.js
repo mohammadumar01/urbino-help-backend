@@ -4,137 +4,53 @@ const router = express.Router();
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
 const ROLES = require("../constants/roles");
+const c = require("../controllers/providerServiceController");
 
-const { body } = require("express-validator");
-const validateRequest = require("../middleware/validationMiddleware");
+const providerOnly = [authMiddleware, roleMiddleware(ROLES.PROVIDER)];
 
-const {
-    getServices,
-    addService,
-    deleteService
-} = require("../controllers/providerServiceController");
-
+/**
+ * @swagger
+ * tags:
+ *   name: Provider Services
+ *   description: Services a provider offers and their prices
+ */
 
 /**
  * @swagger
  * /api/provider-services:
  *   get:
- *     summary: Get provider services
+ *     summary: My services
  *     tags: [Provider Services]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Provider services fetched successfully
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Provider access only
- *       500:
- *         description: Internal Server Error
- */
-router.get(
-    "/",
-    authMiddleware,
-    roleMiddleware(ROLES.PROVIDER),
-    getServices
-);
-
-
-/**
- * @swagger
- * /api/provider-services:
+ *     security: [{ bearerAuth: [] }]
  *   post:
- *     summary: Add service to provider
+ *     summary: Offer a service (price defaults to the service's base price)
  *     tags: [Provider Services]
- *     security:
- *       - bearerAuth: []
+ *     security: [{ bearerAuth: [] }]
  *     requestBody:
- *       required: true
  *       content:
  *         application/json:
  *           schema:
  *             type: object
- *             required:
- *               - service_id
- *               - price
  *             properties:
- *               service_id:
- *                 type: integer
- *                 example: 2
- *               price:
- *                 type: number
- *                 example: 600
- *     responses:
- *       201:
- *         description: Service added successfully
- *       400:
- *         description: Invalid request or service already added
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Provider access only
- *       500:
- *         description: Internal Server Error
+ *               service_id: { type: integer }
+ *               price: { type: number }
  */
-router.post(
-    "/",
+router.get("/", ...providerOnly, c.getServices);
+router.post("/", ...providerOnly, c.addService);
 
-    authMiddleware,
-
-    roleMiddleware(ROLES.PROVIDER),
-
-    [
-        body("service_id")
-            .notEmpty()
-            .withMessage("Service ID is required")
-            .isInt()
-            .withMessage("Service ID must be integer"),
-
-        body("price")
-            .notEmpty()
-            .withMessage("Price is required")
-            .isFloat({ min: 1 })
-            .withMessage("Price must be greater than 0")
-    ],
-
-    validateRequest,
-
-    addService
-);
 /**
  * @swagger
  * /api/provider-services/{serviceId}:
- *   delete:
- *     summary: Remove service from provider
+ *   put:
+ *     summary: Change price or pause/resume a service
  *     tags: [Provider Services]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: serviceId
- *         required: true
- *         schema:
- *           type: integer
- *         example: 2
- *     responses:
- *       200:
- *         description: Service removed successfully
- *       401:
- *         description: Unauthorized
- *       403:
- *         description: Provider access only
- *       404:
- *         description: Provider service not found
- *       500:
- *         description: Internal Server Error
+ *     security: [{ bearerAuth: [] }]
+ *   delete:
+ *     summary: Stop offering a service
+ *     tags: [Provider Services]
+ *     security: [{ bearerAuth: [] }]
  */
-router.delete(
-    "/:serviceId",
-    authMiddleware,
-    roleMiddleware(ROLES.PROVIDER),
-    deleteService
-);
-
+router.put("/:serviceId", ...providerOnly, c.updateService);
+router.delete("/:serviceId", ...providerOnly, c.deleteService);
 
 module.exports = router;

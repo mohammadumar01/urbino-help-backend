@@ -42,6 +42,7 @@ const discoverProviders = async (
             ON r.provider_id = ps.provider_id
 
         WHERE ps.service_id = $1
+          AND ps.is_active
           AND u.role = 'provider'
           AND u.is_deleted IS NOT TRUE
     `;
