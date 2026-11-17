@@ -4,20 +4,27 @@ const router = express.Router();
 
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
+const uploadAgentDocument = require("../middleware/uploadMiddleware");
 
 const {
-getAssignedJobs,
-acceptAssignedJob,
-onTheWay,
-startAssignedJob,
-completeAssignedJob
+  getAssignedJobs,
+  acceptAssignedJob,
+  onTheWay,
+  startAssignedJob,
+  completeAssignedJob,
 } = require("../controllers/agentController");
+
+const {
+  getMyAgentProfile,
+  updateMyAgentProfile,
+  uploadMyAgentDocument,
+} = require("../controllers/agentProfileController");
 
 /**
  * @swagger
  * /api/agent/my-jobs:
  *   get:
- *     summary: Get assigned jobs for logged in agent
+ *     summary: Get assigned jobs for logged-in agent
  *     tags: [Agent]
  *     security:
  *       - bearerAuth: []
@@ -31,12 +38,11 @@ completeAssignedJob
  *       500:
  *         description: Internal Server Error
  */
-
 router.get(
-"/my-jobs",
-authMiddleware,
-roleMiddleware(ROLES.AGENT),
-getAssignedJobs
+  "/my-jobs",
+  authMiddleware,
+  roleMiddleware(ROLES.AGENT),
+  getAssignedJobs
 );
 
 /**
@@ -66,12 +72,11 @@ getAssignedJobs
  *       500:
  *         description: Internal Server Error
  */
-
 router.put(
-    "/accept/:id",
-    authMiddleware,
-    roleMiddleware(ROLES.AGENT),
-    acceptAssignedJob
+  "/accept/:id",
+  authMiddleware,
+  roleMiddleware(ROLES.AGENT),
+  acceptAssignedJob
 );
 
 /**
@@ -101,12 +106,11 @@ router.put(
  *       500:
  *         description: Internal Server Error
  */
-
 router.put(
-    "/on-the-way/:id",
-    authMiddleware,
-    roleMiddleware(ROLES.AGENT),
-    onTheWay
+  "/on-the-way/:id",
+  authMiddleware,
+  roleMiddleware(ROLES.AGENT),
+  onTheWay
 );
 
 /**
@@ -136,12 +140,11 @@ router.put(
  *       500:
  *         description: Internal Server Error
  */
-
 router.put(
-    "/start/:id",
-    authMiddleware,
-    roleMiddleware(ROLES.AGENT),
-    startAssignedJob
+  "/start/:id",
+  authMiddleware,
+  roleMiddleware(ROLES.AGENT),
+  startAssignedJob
 );
 
 /**
@@ -171,11 +174,131 @@ router.put(
  *       500:
  *         description: Internal Server Error
  */
-
 router.put(
-    "/complete/:id",
-    authMiddleware,
-   roleMiddleware(ROLES.AGENT),
-    completeAssignedJob
+  "/complete/:id",
+  authMiddleware,
+  roleMiddleware(ROLES.AGENT),
+  completeAssignedJob
 );
+
+/**
+ * @swagger
+ * /api/agent/profile:
+ *   get:
+ *     summary: Get logged-in agent profile
+ *     tags: [Agent Profile]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Agent profile fetched successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Agent access only
+ *       500:
+ *         description: Internal Server Error
+ */
+router.get(
+  "/profile",
+  authMiddleware,
+  roleMiddleware(ROLES.AGENT),
+  getMyAgentProfile
+);
+
+/**
+ * @swagger
+ * /api/agent/profile:
+ *   put:
+ *     summary: Create or update agent profile
+ *     tags: [Agent Profile]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - address
+ *               - experience_years
+ *               - skills
+ *               - service_area
+ *             properties:
+ *               address:
+ *                 type: string
+ *                 example: Kota, Rajasthan
+ *               experience_years:
+ *                 type: integer
+ *                 minimum: 0
+ *                 example: 2
+ *               skills:
+ *                 type: string
+ *                 example: AC Repair, Installation
+ *               service_area:
+ *                 type: string
+ *                 example: Kota, Jaipur
+ *     responses:
+ *       200:
+ *         description: Agent profile saved successfully
+ *       400:
+ *         description: Invalid profile details
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Agent access only
+ *       500:
+ *         description: Internal Server Error
+ */
+router.put(
+  "/profile",
+  authMiddleware,
+  roleMiddleware(ROLES.AGENT),
+  updateMyAgentProfile
+);
+
+/**
+ * @swagger
+ * /api/agent/profile/document:
+ *   post:
+ *     summary: Upload an identity document for the logged-in agent
+ *     description: Accepts one PDF, JPG, JPEG, or PNG document up to 5 MB.
+ *     tags: [Agent Profile]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - document
+ *             properties:
+ *               document:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Document uploaded successfully; verification is pending
+ *       400:
+ *         description: Missing or invalid document
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Agent access only
+ *       413:
+ *         description: File exceeds the 5 MB limit
+ *       500:
+ *         description: Internal Server Error
+ */
+router.post(
+  "/profile/document",
+  authMiddleware,
+  roleMiddleware(ROLES.AGENT),
+  uploadAgentDocument.single("document"),
+  uploadMyAgentDocument
+);
+
 module.exports = router;

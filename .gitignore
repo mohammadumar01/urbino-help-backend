@@ -50,3 +50,6 @@ build/
 .vscode/
 # Database dumps
 database.sql
+# Uploaded user documents (ID proofs) - never commit
+private_uploads/
+uploads/

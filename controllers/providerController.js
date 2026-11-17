@@ -7,6 +7,7 @@ const {
             assignAgentToBooking,
             findBestAgentForBooking,
             getTotalPendingBookings,
+            getMyBookings
 
 } = require("../models/providerModel");
 
@@ -124,7 +125,6 @@ try {
     );
 }
     await redisClient.del(CACHE_KEYS.ADMIN_DASHBOARD);
-    console.log("Dashboard Cache Cleared");
 
     // Create notification for customer
     await createNotification(
@@ -166,7 +166,6 @@ try {
     //yaad rhe yha chche memori connect kr rhe aur ye sb mai kiya hai to bhulna mt 
     
             await redisClient.del(CACHE_KEYS.ADMIN_DASHBOARD);
-            console.log("Dashboard Cache Cleared");
 
     return res.status(200).json({
         success: true,
@@ -208,7 +207,6 @@ try {
     }
 
     await redisClient.del(CACHE_KEYS.ADMIN_DASHBOARD);
-    console.log("Dashboard cache Cleared");
      
     // Create notification for customer
     await createNotification(
@@ -254,7 +252,6 @@ const autoAssignAgent = async (req, res) => {
 
         await redisClient.del(CACHE_KEYS.ADMIN_DASHBOARD);
 
-        console.log("Dashboard cache Cleared");
 
         await createNotification(
             booking.customer_id,
@@ -289,10 +286,32 @@ const autoAssignAgent = async (req, res) => {
     }
 };
 
+const getProviderBookings = async (req, res) => {
+    try {
+
+        const bookings = await getMyBookings(req.user.id);
+
+        return res.status(200).json({
+            success: true,
+            bookings
+        });
+
+    } catch (error) {
+
+        console.error("Get Provider Bookings Error:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
 module.exports = {
     getAllPendingBookings,
     acceptCustomerBooking,
     completeCustomerBooking,
     assignAgent,
-    autoAssignAgent
+    autoAssignAgent,
+    getProviderBookings
 };

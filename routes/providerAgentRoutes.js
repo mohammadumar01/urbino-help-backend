@@ -1,5 +1,5 @@
-const express = require("express");
 
+const express = require("express");
 const router = express.Router();
 
 const authMiddleware = require("../middleware/authMiddleware");
@@ -9,27 +9,25 @@ const ROLES = require("../constants/roles");
 const {
     getMyAgents,
     addAgent,
-    removeAgent
+    removeAgent,
+    viewAgentDocument
 } = require("../controllers/providerAgentController");
-
 
 /**
  * @swagger
- * /api/provider-agents:
+ * /api/provider/agents:
  *   get:
- *     summary: Get provider's agents
+ *     summary: Get agents linked to the logged-in provider
  *     tags: [Provider Agents]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Provider agents fetched successfully
+ *         description: Provider agents retrieved successfully
  *       401:
  *         description: Unauthorized
  *       403:
- *         description: Provider access only
- *       500:
- *         description: Internal Server Error
+ *         description: Forbidden
  */
 router.get(
     "/",
@@ -38,12 +36,11 @@ router.get(
     getMyAgents
 );
 
-
 /**
  * @swagger
- * /api/provider-agents:
+ * /api/provider/agents:
  *   post:
- *     summary: Add an agent to provider
+ *     summary: Add an agent to the provider
  *     tags: [Provider Agents]
  *     security:
  *       - bearerAuth: []
@@ -58,7 +55,7 @@ router.get(
  *             properties:
  *               agent_id:
  *                 type: integer
- *                 example: 11
+ *                 example: 12
  *     responses:
  *       201:
  *         description: Agent added successfully
@@ -67,13 +64,9 @@ router.get(
  *       401:
  *         description: Unauthorized
  *       403:
- *         description: Provider access only
- *       404:
- *         description: Agent not found
+ *         description: Forbidden
  *       409:
- *         description: Agent already added
- *       500:
- *         description: Internal Server Error
+ *         description: Agent is already added
  */
 router.post(
     "/",
@@ -82,12 +75,11 @@ router.post(
     addAgent
 );
 
-
 /**
  * @swagger
- * /api/provider-agents/{agent_id}:
+ * /api/provider/agents/{agent_id}:
  *   delete:
- *     summary: Remove agent from provider
+ *     summary: Remove an agent from the provider
  *     tags: [Provider Agents]
  *     security:
  *       - bearerAuth: []
@@ -97,18 +89,15 @@ router.post(
  *         required: true
  *         schema:
  *           type: integer
- *         example: 11
  *     responses:
  *       200:
  *         description: Agent removed successfully
  *       401:
  *         description: Unauthorized
  *       403:
- *         description: Provider access only
+ *         description: Forbidden
  *       404:
  *         description: Agent not found for this provider
- *       500:
- *         description: Internal Server Error
  */
 router.delete(
     "/:agent_id",
@@ -117,5 +106,56 @@ router.delete(
     removeAgent
 );
 
+/**
+ * @swagger
+ * /api/provider/agents/{agent_id}/document:
+ *   get:
+ *     summary: View a linked agent's identity document
+ *     description: Only an authenticated provider who has linked the agent can access the document.
+ *     tags: [Provider Agents]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: agent_id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Agent user ID
+ *     responses:
+ *       200:
+ *         description: Agent document returned inline as PDF or image
+ *         content:
+ *           application/pdf:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *           image/jpeg:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *           image/png:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       400:
+ *         description: Invalid agent ID or document path
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden
+ *       404:
+ *         description: Document not found or agent not linked to provider
+ *       415:
+ *         description: Unsupported document type
+ *       500:
+ *         description: Internal server error
+ */
+router.get(
+    "/:agent_id/document",
+    authMiddleware,
+    roleMiddleware(ROLES.PROVIDER),
+    viewAgentDocument
+);
 
 module.exports = router;

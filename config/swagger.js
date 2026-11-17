@@ -10,12 +10,11 @@ const swaggerOptions = {
             description: "Backend APIs for Urbino Help Service Marketplace",
         },
 
-        servers: [
-            {
-                url: "http://localhost:5500",
-            },
-        ],
-
+      servers: [
+    {
+        url: "http://localhost:5500",
+    }
+   ],
         components: {
             securitySchemes: {
                 bearerAuth: {

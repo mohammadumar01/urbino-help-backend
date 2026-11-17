@@ -6,4 +6,4 @@ const ROLES = {
     CUSTOMER: "customer"
 };
 
-module.exports = ROLES;
+module.exports = ROLES; 

@@ -1,119 +1,161 @@
 const pool = require("../config/db");
 
+
 const getServices = async (
-search,
-categoryId,
-limit,
-offset
+    search,
+    categoryId,
+    limit,
+    offset
 ) => {
 
-let query = `
-    SELECT
-        s.id,
-        s.category_id,
-        c.name AS category_name,
-        s.name,
-        s.description,
-        s.base_price,
-        s.created_at
-    FROM services s
-    JOIN categories c
-        ON s.category_id = c.id
-    WHERE 1 = 1
-`;
+    let query = `
+        SELECT
+            s.id,
+            s.category_id,
+            c.name AS category_name,
+            s.name,
+            s.description,
+            s.base_price,
+            s.created_at
+        FROM services s
+        JOIN categories c
+            ON s.category_id = c.id
+        WHERE 1 = 1
+    `;
 
-const values = [];
+    const values = [];
 
-if (search) {
 
-    values.push(`%${search}%`);
+    if (search) {
+
+        values.push(`%${search}%`);
+
+        query += `
+            AND (
+                s.name ILIKE $${values.length}
+                OR s.description ILIKE $${values.length}
+            )
+        `;
+    }
+
+
+    if (categoryId) {
+
+        values.push(categoryId);
+
+        query += `
+            AND s.category_id = $${values.length}
+        `;
+    }
+
 
     query += `
-        AND (
-            s.name ILIKE $${values.length}
-            OR s.description ILIKE $${values.length}
-        )
+        ORDER BY s.id ASC
     `;
-}
 
-if (categoryId) {
 
-    values.push(categoryId);
+    values.push(limit);
 
     query += `
-        AND s.category_id = $${values.length}
+        LIMIT $${values.length}
     `;
-}
 
-query += `
-    ORDER BY s.id ASC
-`;
 
-values.push(limit);
+    values.push(offset);
 
-query += `
-    LIMIT $${values.length}
-`;
+    query += `
+        OFFSET $${values.length}
+    `;
 
-values.push(offset);
 
-query += `
-    OFFSET $${values.length}
-`;
+    const result = await pool.query(
+        query,
+        values
+    );
 
-const result = await pool.query(
-    query,
-    values
-);
 
-return result.rows;
+    return result.rows;
 };
 
 
 const getTotalServices = async (
-search,
-categoryId
+    search,
+    categoryId
 ) => {
 
-let query = `
-    SELECT COUNT(*) AS count
-    FROM services s
-    WHERE 1 = 1
-`;
-
-const values = [];
-
-if (search) {
-
-    values.push(`%${search}%`);
-
-    query += `
-        AND (
-            s.name ILIKE $${values.length}
-            OR s.description ILIKE $${values.length}
-        )
+    let query = `
+        SELECT COUNT(*) AS count
+        FROM services s
+        WHERE 1 = 1
     `;
-}
 
-if (categoryId) {
+    const values = [];
 
-    values.push(categoryId);
 
-    query += `
-        AND s.category_id = $${values.length}
+    if (search) {
+
+        values.push(`%${search}%`);
+
+        query += `
+            AND (
+                s.name ILIKE $${values.length}
+                OR s.description ILIKE $${values.length}
+            )
+        `;
+    }
+
+
+    if (categoryId) {
+
+        values.push(categoryId);
+
+        query += `
+            AND s.category_id = $${values.length}
+        `;
+    }
+
+
+    const result = await pool.query(
+        query,
+        values
+    );
+
+
+    return Number(result.rows[0].count);
+};
+
+
+const getServiceById = async (id) => {
+
+    const query = `
+        SELECT
+            s.id,
+            s.category_id,
+            c.name AS category_name,
+            s.name,
+            s.description,
+            s.base_price,
+            s.created_at
+        FROM services s
+        JOIN categories c
+            ON s.category_id = c.id
+        WHERE s.id = $1
+        LIMIT 1
     `;
-}
 
-const result = await pool.query(
-    query,
-    values
-);
 
-return Number(result.rows[0].count);
+    const result = await pool.query(
+        query,
+        [id]
+    );
+
+
+    return result.rows[0] || null;
 };
 
 
 module.exports = {
-getServices,
-getTotalServices
+    getServices,
+    getTotalServices,
+    getServiceById
 };

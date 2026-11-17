@@ -76,9 +76,39 @@ const removeProviderAgent = async (
     return result.rows[0];
 };
 
+// GET AGENT DOCUMENT FOR A LINKED PROVIDER
+const getAgentDocumentForProvider = async (
+    providerId,
+    agentId
+) => {
+    const query = `
+        SELECT
+            ap.id AS profile_id,
+            ap.agent_id,
+            ap.document_path,
+            ap.document_original_name,
+            ap.document_mime_type,
+            ap.verification_status
+        FROM provider_agents pa
+        JOIN agent_profiles ap
+            ON ap.agent_id = pa.agent_id
+        WHERE pa.provider_id = $1
+          AND pa.agent_id = $2
+          AND ap.document_path IS NOT NULL
+        LIMIT 1;
+    `;
+
+    const result = await pool.query(query, [
+        providerId,
+        agentId
+    ]);
+
+    return result.rows[0] || null;
+};
 
 module.exports = {
     getProviderAgents,
     addProviderAgent,
-    removeProviderAgent
+    removeProviderAgent,
+    getAgentDocumentForProvider
 };

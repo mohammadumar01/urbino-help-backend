@@ -22,11 +22,21 @@ SELECT
     bookings.booking_date,
     bookings.booking_time,
     bookings.status,
-    bookings.created_at
+    bookings.created_at,
+    bookings.price,
+    pay.payment_status,
+    pay.payment_method
 FROM bookings
 JOIN users
 ON bookings.customer_id = users.id
-WHERE bookings.agent_id = $1
+LEFT JOIN LATERAL (
+            SELECT payment_status, payment_method
+            FROM payments
+            WHERE booking_id = bookings.id
+            ORDER BY (payment_status = 'successful') DESC, created_at DESC, id DESC
+            LIMIT 1
+        ) pay ON TRUE
+        WHERE bookings.agent_id = $1
 `;
 
 let values = [agent_id];

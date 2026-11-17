@@ -315,25 +315,61 @@ npm install
 
 ## 3. Configure Environment Variables
 
-Create a `.env` file in the root directory of the project.
+Copy `.env.example` to `.env` and fill in real values:
 
-Example configuration:
-
-```env
-PORT=5500
-
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=postgres
-DB_PASSWORD=your_database_password
-DB_NAME=Urbino_help
-
-JWT_SECRET=your_jwt_secret
-
-OPENAI_API_KEY=your_openai_api_key
-
-REDIS_URL=redis://127.0.0.1:6379
+```bash
+cp .env.example .env
 ```
+
+Important variables:
+
+| Variable | Purpose |
+|---|---|
+| `FRONTEND_URL` | Frontend origin(s) allowed by CORS, comma-separated |
+| `JWT_SECRET` | Long random string (min 32 chars in production) |
+| `DB_POOL_MAX` | Max PostgreSQL connections per Node process (default 20) |
+| `REDIS_URL` | Cache only. The API keeps working if Redis is down |
+| `RUN_MIGRATIONS` | Apply `database/migrations/*.sql` on startup (default `true`) |
+
+## 4. Database migrations
+
+Schema changes live in `database/migrations/` and run in order, once each
+(tracked in the `schema_migrations` table). They run automatically on startup,
+or manually with:
+
+```bash
+npm run migrate
+```
+
+## Payments (Razorpay + cash)
+
+- **Online:** `POST /api/payment/order` creates a Razorpay order, the browser opens Razorpay
+  Checkout, then `POST /api/payment/verify` checks the signature on the server.
+  `POST /api/payment/webhook/razorpay` keeps status correct even if the customer closes the tab
+  (set the webhook URL and `RAZORPAY_WEBHOOK_SECRET` in the Razorpay dashboard; events:
+  `payment.captured`, `payment.failed`, `refund.processed`).
+- **Cash:** customer picks "pay after service"; the provider or assigned agent records it with
+  `PUT /api/payment/booking/:id/cash-collected` once work has started.
+- **Refunds:** cancelling a paid booking refunds automatically; admins can refund from the
+  Payments page. Cash refunds stay "refund due" until marked done.
+- **Safety:** amount always comes from the booking price, one successful payment per booking
+  (DB unique index), webhook events are de-duplicated, only admins can change a status by hand.
+- **Commission:** `PLATFORM_COMMISSION_PERCENT` (default 15) is split into `platform_fee` and
+  `provider_earning` on every successful payment.
+- **Without Razorpay keys** (development) a built-in test gateway is used, so the full flow
+  works without real money. In production without keys only cash is offered.
+
+## Tests
+
+```bash
+RAZORPAY_WEBHOOK_SECRET=e2e_webhook_secret npm run dev   # terminal 1
+npm run test:e2e                                          # terminal 2 (local DB only)
+```
+
+## Health check
+
+`GET /health` returns DB and Redis status (HTTP 503 if the database is down).
+Use it for Docker / load-balancer health checks.
 
 > ⚠️ Never commit `.env` files, API keys, passwords, tokens, or production secrets to version control.
 

@@ -1,7 +1,6 @@
 const ROLES = require("../constants/roles");
 const express = require("express");
 const router = express.Router();
-
 const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware.js");
 
@@ -15,7 +14,8 @@ const {
     acceptCustomerBooking,
     completeCustomerBooking,
     assignAgent,
-    autoAssignAgent
+    autoAssignAgent,
+    getProviderBookings
 } = require("../controllers/providerController");
 
 /**
@@ -44,6 +44,31 @@ router.get(
     getAllPendingBookings
 );
 
+/**
+ * @swagger
+ * /api/provider/my-bookings:
+ *   get:
+ *     summary: Get provider's bookings
+ *     tags: [Provider]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Provider bookings fetched successfully
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Provider access only
+ *       500:
+ *         description: Internal Server Error
+ */
+
+router.get(
+    "/my-bookings",
+    authMiddleware,
+    roleMiddleware(ROLES.PROVIDER),
+    getProviderBookings
+);
 /**
  * @swagger
  * /api/provider/accept/{id}:

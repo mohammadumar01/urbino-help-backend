@@ -1,8 +1,17 @@
-const swaggerUi = require("swagger-ui-express");
-const swaggerSpec = require("./config/swagger");
-
 const express = require("express");
 const cors = require("cors");
+const helmet = require("helmet");
+const compression = require("compression");
+const rateLimit = require("express-rate-limit");
+const swaggerUi = require("swagger-ui-express");
+
+const swaggerSpec = require("./config/swagger");
+const pool = require("./config/db");
+const redisClient = require("./config/redis");
+const errorHandler = require("./middleware/errorMiddleware");
+const authMiddleware = require("./middleware/authMiddleware");
+const roleMiddleware = require("./middleware/roleMiddleware");
+const ROLES = require("./constants/roles");
 
 const authRoutes = require("./routes/authRoutes");
 const customerRoutes = require("./routes/customerRoutes");
@@ -17,7 +26,6 @@ const reviewRoutes = require("./routes/reviewRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 const providerVerificationRoutes = require("./routes/providerVerificationRoutes");
-const errorHandler = require("./middleware/errorMiddleware");
 const categoryRoutes = require("./routes/categoryRoutes");
 const serviceRoutes = require("./routes/serviceRoutes");
 const providerAvailabilityRoutes = require("./routes/providerAvailabilityRoutes");
@@ -25,67 +33,134 @@ const providerAgentRoutes = require("./routes/providerAgentRoutes");
 const agentServiceRoutes = require("./routes/agentServiceRoutes");
 const chatbotRoutes = require("./routes/chatbotRoutes");
 const providerBookingRoutes = require("./routes/providerBookingRoutes");
-const serviceDiscoveryRoutes = require( "./routes/serviceDiscoveryRoutes");
+const serviceDiscoveryRoutes = require("./routes/serviceDiscoveryRoutes");
 
 const app = express();
+const isProd = process.env.NODE_ENV === "production";
 
-app.use(cors());
-app.use(express.json());
+// Reverse proxy (Nginx / load balancer) ke peeche sahi client IP mile
+app.set("trust proxy", Number(process.env.TRUST_PROXY ?? 1));
+app.disable("x-powered-by");
 
-//middleware
+// ---------- Security & performance ----------
+app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+app.use(compression());
 
-app.use("/api/auth",authRoutes);
-app.use("/api/customer",customerRoutes);
-app.use("/api/booking",bookingRoutes);
-app.use("/api/provider",providerRoutes);
-app.use("/api/provider-profile", providerProfileRoutes);
-app.use("/api/provider-services", providerServiceRoutes);
-app.use("/api/reviews", reviewRoutes);
-app.use("/api/notifications", notificationRoutes);
-app.use("/api/admin",adminRoutes);
-app.use("/api/admin", adminVerificationRoutes);
-app.use("/api/agent",agentRoutes);
-app.use("/api/payment", paymentRoutes);
-app.use( "/api/provider-verification",providerVerificationRoutes);
-
-app.use("/api/categories", categoryRoutes);
-app.use("/api/services", serviceRoutes);
-
-app.use( "/api/provider-availability",  providerAvailabilityRoutes);
+// Sirf apne frontend(s) ko allow karo. FRONTEND_URL comma-separated ho sakta hai.
+const allowedOrigins = (process.env.FRONTEND_URL || "http://localhost:3000")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
 
 app.use(
-    "/api/provider-agents",
-    providerAgentRoutes
+    cors({
+        origin(origin, cb) {
+            // Postman / server-to-server calls mein origin nahi hota
+            if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+            return cb(new Error("Not allowed by CORS"));
+        },
+        credentials: true,
+    })
 );
 
-app.use("/api/agent-services", agentServiceRoutes);
-
-
-app.use(
-    "/api/provider-bookings",
-    providerBookingRoutes
+// Razorpay webhook ko raw body chahiye (signature isi par banta hai), isliye json parser se pehle
+app.post(
+    "/api/payment/webhook/razorpay",
+    express.raw({ type: "application/json", limit: "1mb" }),
+    require("./controllers/paymentController").razorpayWebhook
 );
 
-app.use("/api/chatbot", chatbotRoutes);
+app.use(express.json({ limit: "1mb" }));
+app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 
-app.use(
-    "/api/service-discovery",
-    serviceDiscoveryRoutes
-);
-
-app.get("/",(req,res) => {
-    res.json({
-        success: true,
-        message: "Urbino Help Backend running "
-       });
-
+// ---------- Rate limits ----------
+const apiLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    limit: Number(process.env.RATE_LIMIT_PER_MIN) || 300,
+    standardHeaders: "draft-7",
+    legacyHeaders: false,
+    message: { success: false, message: "Too many requests. Please slow down." },
 });
 
-app.use(
-    "/api-docs",
-    swaggerUi.serve,
-    swaggerUi.setup(swaggerSpec)
-);
+// Login/register par brute-force rokne ke liye sakht limit
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: Number(process.env.AUTH_RATE_LIMIT) || 30,
+    standardHeaders: "draft-7",
+    legacyHeaders: false,
+    message: { success: false, message: "Too many login attempts. Try again in a few minutes." },
+});
+
+const chatbotLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    limit: 10,
+    standardHeaders: "draft-7",
+    legacyHeaders: false,
+    message: { success: false, message: "Too many chatbot messages. Please wait a minute." },
+});
+
+// ---------- Health ----------
+app.get("/", (req, res) => {
+    res.json({ success: true, message: "Urbino Help Backend running" });
+});
+
+app.get("/health", async (req, res) => {
+    let db = "down";
+    try {
+        await pool.query("SELECT 1");
+        db = "up";
+    } catch {
+        /* db down */
+    }
+    const redis = redisClient.isReady() ? "up" : "down";
+    res.status(db === "up" ? 200 : 503).json({
+        success: db === "up",
+        db,
+        redis,
+        uptime: Math.round(process.uptime()),
+    });
+});
+
+// ---------- Routes ----------
+app.use("/api", apiLimiter);
+app.use("/api/auth/login", authLimiter);
+app.use("/api/auth/register", authLimiter);
+app.use("/api/chatbot", chatbotLimiter);
+
+app.use("/api/auth", authRoutes);
+app.use("/api/customer", customerRoutes);
+// Bookings sirf customer ke liye; provider booking actions sirf provider ke liye
+app.use("/api/booking", authMiddleware, roleMiddleware(ROLES.CUSTOMER), bookingRoutes);
+app.use("/api/provider/agents", providerAgentRoutes);
+// Frontend ka purana path bhi chale
+app.use("/api/provider-agents", providerAgentRoutes);
+app.use("/api/provider", providerRoutes);
+app.use("/api/provider-profile", providerProfileRoutes);
+app.use("/api/provider-services", providerServiceRoutes);
+app.use("/api/provider-availability", providerAvailabilityRoutes);
+app.use("/api/provider-bookings", authMiddleware, roleMiddleware(ROLES.PROVIDER), providerBookingRoutes);
+app.use("/api/provider-verification", providerVerificationRoutes);
+app.use("/api/reviews", reviewRoutes);
+app.use("/api/notifications", notificationRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/admin", adminVerificationRoutes);
+app.use("/api/agent", agentRoutes);
+app.use("/api/agent-services", agentServiceRoutes);
+app.use("/api/payment", paymentRoutes);
+app.use("/api/categories", categoryRoutes);
+app.use("/api/services", serviceRoutes);
+app.use("/api/chatbot", chatbotRoutes);
+app.use("/api/service-discovery", serviceDiscoveryRoutes);
+
+// API docs production mein band (ENABLE_API_DOCS=true se khol sakte ho)
+if (!isProd || process.env.ENABLE_API_DOCS === "true") {
+    app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+}
+
+// ---------- 404 + errors ----------
+app.use((req, res) => {
+    res.status(404).json({ success: false, message: `Route not found: ${req.method} ${req.originalUrl}` });
+});
 
 app.use(errorHandler);
 

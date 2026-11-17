@@ -39,7 +39,9 @@ const findUserByEmail = async (email) => {
     const query = `
         SELECT *
         FROM users
-        WHERE email = $1;
+        WHERE lower(email) = lower($1)
+        ORDER BY id
+        LIMIT 1;
     `;
 
     const result = await pool.query(query, [email]);

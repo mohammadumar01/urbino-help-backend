@@ -55,7 +55,7 @@ getProviderReviews
 router.post(
     "/",
     authMiddleware,
-    roleMiddleware(ROLES.CUSTOMER),
+    roleMiddleware(ROLES.USER, ROLES.CUSTOMER),
     createReview
 );
 

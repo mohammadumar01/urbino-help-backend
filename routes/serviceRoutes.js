@@ -3,7 +3,8 @@ const express = require("express");
 const router = express.Router();
 
 const {
-getAllServices
+    getAllServices,
+    getServiceById
 } = require("../controllers/serviceController");
 
 
@@ -44,8 +45,39 @@ getAllServices
  */
 
 router.get(
-"/",
-getAllServices
+    "/",
+    getAllServices
 );
+
+
+/**
+ * @swagger
+ * /api/services/{id}:
+ *   get:
+ *     summary: Get a service by ID
+ *     tags: [Services]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         example: 2
+ *     responses:
+ *       200:
+ *         description: Service fetched successfully
+ *       400:
+ *         description: Invalid service ID
+ *       404:
+ *         description: Service not found
+ *       500:
+ *         description: Internal Server Error
+ */
+
+router.get(
+    "/:id",
+    getServiceById
+);
+
 
 module.exports = router;

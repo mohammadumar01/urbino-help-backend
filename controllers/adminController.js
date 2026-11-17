@@ -165,7 +165,6 @@ const getDashboard = async(req,res) =>{
         const cachedDashboard = await redisClient.get(cacheKey);
 
         if(cachedDashboard) {
-            console.log("Dashboard Cache Hit");
 
             return res.status(200).json({
                 success:true,
@@ -173,7 +172,6 @@ const getDashboard = async(req,res) =>{
             });
         }
 
-        console.log("Dashboard Cache Miss");
 
         const dashboard = await getDashboardStats();
 
@@ -181,10 +179,9 @@ const getDashboard = async(req,res) =>{
             cacheKey,
             JSON.stringify(dashboard),
             {
-                EX: 300
+                EX: 60
             }
         );
-        console.log("Dashboard Cached Successfully");
 
         return res.status(200).json({
             success:true,

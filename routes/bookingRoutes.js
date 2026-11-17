@@ -63,13 +63,14 @@ authMiddleware,
 
 [
 
-    body("service_name")
-        .notEmpty()
-        .withMessage("Service name is required")
-        .isLength({ min: 3 })
-        .withMessage(
-            "Service name must be at least 3 characters"
-        ),
+    body("service_id")
+        .isInt({ min: 1 })
+        .withMessage("Valid service_id is required"),
+
+    body("provider_id")
+        .optional({ values: "null" })
+        .isInt({ min: 1 })
+        .withMessage("provider_id must be a number"),
 
     body("address")
         .notEmpty()

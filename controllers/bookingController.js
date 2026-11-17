@@ -1,249 +1,241 @@
 const CACHE_KEYS = require("../config/cacheKeys");
 const redisClient = require("../config/redis");
-const { createBooking,
+const {
+    getServiceForBooking,
+    createBooking,
     getBookingsByCustomerId,
     getTotalBookingsByCustomerId,
     cancelBooking,
-    rescheduleBooking
+    rescheduleBooking,
 } = require("../models/bookingModel");
-
+const { createNotification } = require("../models/notificationModel");
 const { clearCustomerBookingCache } = require("../utils/cacheUtils");
+const { refundForBooking } = require("../services/paymentService");
 
-const createCustomerBooking = async (req, res) => {
+function todayIso() {
+    // India time (IST) ke hisaab se aaj ki date
+    return new Date(Date.now() + 5.5 * 3600 * 1000).toISOString().slice(0, 10);
+}
 
+function validateDateTime(booking_date, booking_time) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(booking_date)) || Number.isNaN(Date.parse(booking_date))) {
+        return "Booking date must be in YYYY-MM-DD format.";
+    }
+    if (booking_date < todayIso()) {
+        return "Booking date cannot be in the past.";
+    }
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(String(booking_time).slice(0, 5))) {
+        return "Booking time must be in HH:MM format.";
+    }
+    return null;
+}
+
+async function invalidateCaches(customerId) {
+    await clearCustomerBookingCache(customerId);
+    await redisClient.del(CACHE_KEYS.ADMIN_DASHBOARD);
+}
+
+const createCustomerBooking = async (req, res, next) => {
     try {
-    const {
-        service_name,
-        address,
-        booking_date,
-        booking_time,
-        provider_id
-    } = req.body;
+        const { service_id, service_name, address, booking_date, booking_time, provider_id } = req.body;
 
-    if(
-        !service_name ||
-            !address || 
-            !booking_date ||
-            !booking_time
+        if (!address || !booking_date || !booking_time || (!service_id && !service_name)) {
+            return res.status(400).json({
+                success: false,
+                message: "service_id, address, booking_date and booking_time are required",
+            });
+        }
 
-    ){
-        return res.status(400).json({
-            success: false,
-            message:"All fields are required"
+        const dateError = validateDateTime(booking_date, booking_time);
+        if (dateError) {
+            return res.status(400).json({ success: false, message: dateError });
+        }
+
+        let finalServiceId = null;
+        let finalServiceName = String(service_name || "").trim();
+        let price = null;
+
+        if (service_id) {
+            const service = await getServiceForBooking(Number(service_id), provider_id ? Number(provider_id) : null);
+            if (!service) {
+                return res.status(404).json({ success: false, message: "Service not found" });
+            }
+            if (provider_id && !service.provider_offers_service) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Selected provider does not offer this service",
+                });
+            }
+            finalServiceId = service.id;
+            finalServiceName = service.name;
+            price = service.provider_price ?? service.base_price;
+        }
+
+        const booking = await createBooking({
+            customer_id: req.user.id,
+            service_id: finalServiceId,
+            service_name: finalServiceName,
+            address: String(address).trim(),
+            booking_date,
+            booking_time: String(booking_time).slice(0, 5),
+            provider_id: provider_id ? Number(provider_id) : null,
+            price,
         });
-    }
 
-    
+        await invalidateCaches(req.user.id);
 
-    const booking = await createBooking(
-        req.user.id,
-        service_name,
-        address,
-        booking_date,
-        booking_time,
-         provider_id
+        // Provider ko turant khabar
+        if (booking.provider_id) {
+            createNotification(
+                booking.provider_id,
+                booking.id,
+                "New booking request",
+                `New ${booking.service_name} booking on ${booking_date} at ${booking.booking_time}.`,
+                "booking_update"
+            ).catch((err) => console.error("[notify] new booking:", err.message));
+        }
 
-    );
-        await clearCustomerBookingCache(req.user.id);
-        await redisClient.del(CACHE_KEYS.ADMIN_DASHBOARD);
-        console.log("Dashboard Cache Cleared");
-
-    return res.status(201).json({
-        success: true,
-        message: "Booking created successfully",
-        booking
-    });
-
-
+        return res.status(201).json({
+            success: true,
+            message: "Booking created successfully",
+            booking,
+        });
     } catch (error) {
-    return res.status(500).json({
-        success: false,
-        message: error.message
-    });
+        next(error);
     }
-
-    
 };
 
-const getMyBooking = async (req,res) => {
-try {
-    const page = Number(req.query.page) || 1;
-    const limit = Number(req.query.limit) || 10;
-    const offset = (page -1) * limit;
+const ALLOWED_SORT = ["created_at", "booking_date", "service_name", "status"];
 
-    const search = req.query.search || "";
-    const status = req.query.status || "";
+const getMyBooking = async (req, res, next) => {
+    try {
+        const page = Math.max(1, Number(req.query.page) || 1);
+        const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 10));
+        const offset = (page - 1) * limit;
+        const search = String(req.query.search || "").trim().slice(0, 100);
+        const status = String(req.query.status || "").trim();
+        const sortBy = ALLOWED_SORT.includes(req.query.sortBy) ? req.query.sortBy : "created_at";
+        const order = String(req.query.order || "DESC").toUpperCase() === "ASC" ? "ASC" : "DESC";
 
-    let sortBy = req.query.sortBy || "created_at";
-    let order = req.query.order || "DESC";
-        
-    const allowedSortFields = [
-        "created_at",
-        "booking_date",
-        "service_name",
-        "status"
-    ];
-        const allowedOrder = ["ASC", "DESC"];
+        // Note: customer list cache nahi hoti. Status provider/agent/payment se kahin se bhi
+        // badal sakta hai aur purani list dikhana galat hai. Query indexed hai (customer_id, created_at).
+        const [bookings, totalBookings] = await Promise.all([
+            getBookingsByCustomerId(req.user.id, limit, offset, search, status, sortBy, order),
+            getTotalBookingsByCustomerId(req.user.id, search, status),
+        ]);
 
-        if(!allowedSortFields.includes(sortBy)){
-        sortBy = "created_at";
+        const response = {
+            success: true,
+            currentPage: page,
+            limit,
+            totalBookings,
+            totalPages: Math.max(1, Math.ceil(totalBookings / limit)),
+            bookings,
+        };
+
+        return res.status(200).json(response);
+    } catch (error) {
+        next(error);
+    }
+};
+
+const cancelCustomerBooking = async (req, res, next) => {
+    try {
+        const result = await cancelBooking(Number(req.params.id), req.user.id);
+
+        if (result.reason === "not_found") {
+            return res.status(404).json({ success: false, message: "Booking not found" });
+        }
+        if (result.reason === "not_cancellable") {
+            return res.status(409).json({
+                success: false,
+                message: `This booking can no longer be cancelled (status: ${result.status.replaceAll("_", " ")}).`,
+            });
         }
 
-        if(!allowedOrder.includes(order.toUpperCase())) {
-        order = "DESC";
+        const { booking } = result;
+        await invalidateCaches(req.user.id);
+
+        // Pehle se paid booking cancel hui to paisa wapas
+        const refund = await refundForBooking(booking.id, "Booking cancelled").catch((err) => {
+            console.error("[refund] on cancel:", err.message);
+            return null;
+        });
+
+        const notifyIds = [booking.provider_id, booking.agent_id].filter(Boolean);
+        for (const userId of notifyIds) {
+            createNotification(
+                userId,
+                booking.id,
+                "Booking cancelled",
+                `Booking #${booking.id} (${booking.service_name}) was cancelled by the customer.`,
+                "booking_update"
+            ).catch((err) => console.error("[notify] cancel:", err.message));
         }
 
-        else {
-        order = order.toUpperCase();
+        return res.status(200).json({
+            success: true,
+            message: refund
+                ? refund.payment_status === "refunded"
+                    ? "Booking cancelled. Your payment has been refunded."
+                    : "Booking cancelled. Your refund has been initiated."
+                : "Booking cancelled successfully",
+            booking,
+            refund_status: refund?.payment_status || null,
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+const rescheduleCustomerBooking = async (req, res, next) => {
+    try {
+        const { booking_date, booking_time } = req.body;
+
+        const dateError = validateDateTime(booking_date, booking_time);
+        if (dateError) {
+            return res.status(400).json({ success: false, message: dateError });
         }
-// yha Generate kr rhe hai Cache key
-        const cacheKey = CACHE_KEYS.CUSTOMER_BOOKINGS(
-        req.user.id,
-        page,
-        limit,
-        search,
-        status,
-        sortBy,
-        order
+
+        const booking = await rescheduleBooking(
+            Number(req.params.id),
+            req.user.id,
+            booking_date,
+            String(booking_time).slice(0, 5)
         );
 
-        // Check redis cache 
-
-        const cachedBookings = await redisClient.get(cacheKey);
-
-        if (cachedBookings) {
-        console.log("Customer Bookings Cache Hit");
-        return res.status(200).json(JSON.parse(cachedBookings));
-        
+        if (!booking) {
+            return res.status(404).json({
+                success: false,
+                message: "Booking not found or can no longer be rescheduled",
+            });
         }
-        console.log("Customer Bookings Cache Miss");
 
-        
-    const bookings = await getBookingsByCustomerId(
-        req.user.id,
-        limit,
-        offset,
-        search,
-        status,
-        sortBy,
-        order
-    );
+        await invalidateCaches(req.user.id);
 
-    const totalBookings = await getTotalBookingsByCustomerId(
-        req.user.id,
-        search,
-        status
-    );
-    const totalPages = Math.max(1,Math.ceil(totalBookings / limit));
+        if (booking.provider_id) {
+            createNotification(
+                booking.provider_id,
+                booking.id,
+                "Booking rescheduled",
+                `Booking #${booking.id} moved to ${booking_date} at ${booking.booking_time}.`,
+                "booking_update"
+            ).catch((err) => console.error("[notify] reschedule:", err.message));
+        }
 
-// yha respomse ka redis ke ander save kiya hamne yaad rakhna
-    const response =  {
-        success: true,
-        currentPage: page,
-        limit,
-        totalBookings,
-        totalPages,
-        bookings
-    };
-
-    await redisClient.setEx(
-        cacheKey,
-        300,
-        JSON.stringify(response)
-    );
-
-    console.log("Customer Bookings Cached");
-
-    return res.status(200).json(response);
-
-}  catch(error) {
-    return res.status(500).json({
-        success: false,
-        message: error.message
-    });
-}
-};
-const cancelCustomerBooking = async (req,res) => {
-try {
-
-    const{ id} = req.params;
-
-    const booking = await cancelBooking(
-        id,
-        req.user.id
-    );
-
-    if(!booking) {
-        return res.status(404).json({
-            success: false,
-            message: "Booking not found"
+        return res.status(200).json({
+            success: true,
+            message: "Booking rescheduled successfully",
+            booking,
         });
+    } catch (error) {
+        next(error);
     }
-        await clearCustomerBookingCache(req.user.id);
-        await redisClient.del(CACHE_KEYS.ADMIN_DASHBOARD);
-        console.log("Dashboard Cache Cleared");
-
-    return res.status(200).json({
-        success: true,
-        message: "Booking cancelled successfully",
-        booking
-    });
-} catch (error) {
-    return res.status(500).json({
-        success: false,
-        message: error.message
-    });
-}
 };
 
-const rescheduleCustomerBooking = async (req, res) => {
-
-try {
-
-    const { id } = req.params;
-
-    const {
-        booking_date,
-        booking_time
-    } = req.body;
-
-    const booking = await rescheduleBooking(
-        id,
-        req.user.id,
-        booking_date,
-        booking_time
-    );
-
-    if (!booking) {
-        return res.status(404).json({
-            success: false,
-            message: "Booking not found or cannot be rescheduled"
-        });
-    }
-
-    await clearCustomerBookingCache(req.user.id);
-    await redisClient.del(CACHE_KEYS.ADMIN_DASHBOARD);
-
-    console.log("Dashboard Cache Cleared");
-
-    return res.status(200).json({
-        success: true,
-        message: "Booking rescheduled successfully",
-        booking
-    });
-
-} catch (error) {
-
-    return res.status(500).json({
-        success: false,
-        message: error.message
-    });
-
-}
-};
 module.exports = {
-createCustomerBooking,
-getMyBooking,
-cancelCustomerBooking,
-rescheduleCustomerBooking
-}
+    createCustomerBooking,
+    getMyBooking,
+    cancelCustomerBooking,
+    rescheduleCustomerBooking,
+};

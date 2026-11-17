@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 
-const authMiddleware = require("../middleware/authMiddleware");
+
 
 const {
     getDiscoveredProviders
@@ -53,7 +53,7 @@ const {
 
 router.get(
     "/providers",
-    authMiddleware,
+    // Public: bina login ke bhi customer providers dekh sake
     getDiscoveredProviders
 );
 

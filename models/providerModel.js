@@ -228,12 +228,53 @@ const getTotalPendingBookings  = async (search)=> {
     const result = await pool.query(query, values);
     return result.rows[0].count;
 }
+
+const getMyBookings = async (provider_id) => {
+    const query = `
+        SELECT
+            b.id,
+            b.customer_id,
+            u.name AS customer_name,
+            u.phone AS customer_phone,
+            b.service_name,
+            b.address,
+            b.booking_date,
+            b.booking_time,
+            b.status,
+            b.agent_id,
+            b.agent_assigned_at,
+            b.created_at,
+            b.price,
+            pay.payment_status,
+            pay.payment_method
+        FROM bookings b
+        JOIN users u
+            ON b.customer_id = u.id
+        LEFT JOIN LATERAL (
+            SELECT payment_status, payment_method
+            FROM payments
+            WHERE booking_id = b.id
+            ORDER BY (payment_status = 'successful') DESC, created_at DESC, id DESC
+            LIMIT 1
+        ) pay ON TRUE
+        WHERE b.provider_id = $1
+        AND b.status != '${BOOKING_STATUS.PENDING}'
+        AND b.status != '${BOOKING_STATUS.CANCELLED}'
+        ORDER BY b.created_at DESC;
+    `;
+
+    const result = await pool.query(query, [provider_id]);
+
+    return result.rows;
+};
+
 module.exports = {
     getPendingBookings,
     acceptBooking,
     completeBooking,
     assignAgentToBooking,
      findBestAgentForBooking,
-    getTotalPendingBookings
+    getTotalPendingBookings,
+    getMyBookings
     
 };
