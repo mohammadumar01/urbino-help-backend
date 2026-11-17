@@ -1,4 +1,5 @@
 const express = require("express");
+const { cachePublic } = require("../middleware/cacheMiddleware");
 
 const router = express.Router();
 
@@ -46,6 +47,7 @@ const {
 
 router.get(
     "/",
+    cachePublic("catalog", 300),
     getAllServices
 );
 
@@ -76,6 +78,7 @@ router.get(
 
 router.get(
     "/:id",
+    cachePublic("catalog", 300),
     getServiceById
 );
 

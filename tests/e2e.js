@@ -285,6 +285,29 @@ const tomorrow = new Date(Date.now() + 86400000 + 5.5 * 3600000).toISOString().s
     check("customer cannot view provider file", custFile.status === 403);
     const adminFile = await fetch(`${B}/api/provider-verification/${docId}/file`, { headers: { Authorization: `Bearer ${adT}` } });
     check("admin can view provider file", adminFile.status === 200);
+    // ---------- admin verification (Step 4) ----------
+    r = await call("GET", `/api/admin/provider-verifications?status=pending&search=provider${ts}`, adT);
+    const queued = r.data.providers?.find((p) => p.provider_id === providerId);
+    check("admin queue lists provider with masked doc", r.status === 200 && queued?.documents?.[0]?.document_number?.endsWith("9012") && !queued.documents[0].document_number.includes("5678"), r.data);
+    r = await call("GET", "/api/admin/provider-verifications", cT);
+    check("customer cannot open admin queue", r.status === 403, r.data);
+    r = await call("PATCH", `/api/admin/verification/${docId}/reject`, adT, { rejection_reason: "bad" });
+    check("reject needs a real reason", r.status === 400, r.data);
+    r = await call("PATCH", `/api/admin/verification/${docId}/approve`, adT);
+    check("approve Aadhaar verifies provider", r.status === 200 && r.data.provider_verified === true, r.data);
+    r = await call("PATCH", `/api/admin/verification/${docId}/approve`, adT);
+    check("cannot approve twice", r.status === 409, r.data);
+    r = await call("GET", `/api/provider-profile/${providerId}`);
+    check("public profile shows verified", r.data.profile?.is_verified === true, r.data);
+    r = await call("PATCH", `/api/admin/verification/${docId}/reject`, adT, { rejection_reason: "Photo is blurry or unreadable" });
+    check("revoke removes verified badge", r.status === 200 && r.data.provider_verified === false, r.data);
+    r = await call("GET", "/api/notifications", pT);
+    check("provider notified about rejection", JSON.stringify(r.data).includes("blurry"), r.data);
+    const { rows: [oldDoc] } = await pool.query("SELECT document_url FROM provider_verifications WHERE id = $1", [docId]);
+    r = await upload(pT, { document_type: "Aadhaar", document_number: "1234 5678 9012" }, png);
+    check("re-upload allowed after rejection", r.status === 201 && r.data.verification.status === "pending", r.data);
+    check("old rejected file removed from disk", !require("fs").existsSync(require("path").join(__dirname, "..", "private_uploads", oldDoc.document_url)));
+
     const { rows: [doc] } = await pool.query("SELECT document_url FROM provider_verifications WHERE id = $1", [docId]);
     require("fs").rmSync(require("path").join(__dirname, "..", "private_uploads", doc.document_url), { force: true });
 

@@ -101,6 +101,7 @@ try {
             rating,
             review
         );
+        await require("../middleware/cacheMiddleware").invalidatePublic("providers");
 
 
     return res.status(201).json({

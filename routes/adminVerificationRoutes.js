@@ -7,6 +7,7 @@ const ROLES = require("../constants/roles");
 
 const {
     getAllPendingVerification,
+    getProviderReviewQueue,
     approveVerification,
     rejectVerification
 } = require("../controllers/adminVerificationController");
@@ -20,6 +21,26 @@ const {
 // =====================================================
 // PROVIDER VERIFICATION ROUTES
 // =====================================================
+
+/**
+ * @swagger
+ * /api/admin/provider-verifications:
+ *   get:
+ *     summary: Providers with their KYC documents for review (grouped, filtered, paginated)
+ *     tags: [Admin Verification]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { in: query, name: status, schema: { type: string, enum: [pending, verified, rejected, unverified, all] } }
+ *       - { in: query, name: search, schema: { type: string } }
+ *       - { in: query, name: page, schema: { type: integer } }
+ *       - { in: query, name: limit, schema: { type: integer } }
+ */
+router.get(
+    "/provider-verifications",
+    authMiddleware,
+    roleMiddleware(ROLES.ADMIN),
+    getProviderReviewQueue
+);
 
 /**
  * @swagger

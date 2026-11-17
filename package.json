@@ -7,7 +7,8 @@
     "dev": "nodemon server.js",
     "migrate": "node database/migrate.js",
     "test": "node tests/e2e.js",
-    "test:e2e": "node tests/e2e.js"
+    "test:e2e": "node tests/e2e.js",
+    "test:load": "node tests/load.js"
   },
   "keywords": [],
   "author": "",
@@ -31,6 +32,7 @@
     "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
+    "autocannon": "^7.15.0",
     "nodemon": "^3.1.14"
   },
   "engines": {

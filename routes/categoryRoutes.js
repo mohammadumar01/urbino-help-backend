@@ -1,4 +1,5 @@
 const express = require("express");
+const { cachePublic } = require("../middleware/cacheMiddleware");
 
 const router = express.Router();
 
@@ -22,6 +23,7 @@ getCategories
 
 router.get(
 "/",
+cachePublic("catalog", 300),
 getCategories
 );
 

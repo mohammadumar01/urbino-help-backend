@@ -5,6 +5,7 @@ const {
     getVerificationByProvider,
     getVerificationById,
     checkAadhaarExists,
+    checkDocumentExists,
 } = require("../models/providerVerificationModel");
 const { resolvePrivateFile, PRIVATE_ROOT } = require("../middleware/uploadMiddleware");
 
@@ -70,6 +71,8 @@ const submitVerification = async (req, res, next) => {
             return bad(res, 400, "Please upload your Aadhaar first. It is required for verification.");
         }
 
+        const previous = await checkDocumentExists(req.user.id, document_type);
+
         const saved = await saveUploadedDocument({
             provider_id: req.user.id,
             document_type,
@@ -82,6 +85,12 @@ const submitVerification = async (req, res, next) => {
         if (!saved) {
             removeUpload(req.file);
             return bad(res, 409, `${document_type} is already submitted. You can upload again only if it is rejected.`);
+        }
+
+        // Rejected document ki purani file hata do (disk par kachra na jame)
+        if (previous?.document_original_name && previous.document_url !== saved.document_url) {
+            const old = resolvePrivateFile(previous.document_url);
+            if (old) fs.promises.unlink(old).catch(() => {});
         }
 
         return res.status(201).json({

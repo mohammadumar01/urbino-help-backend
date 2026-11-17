@@ -1,4 +1,5 @@
 const m = require("../models/providerServiceModel");
+const { invalidatePublic } = require("../middleware/cacheMiddleware");
 
 const MAX_PRICE = 500000;
 
@@ -36,6 +37,7 @@ const addService = async (req, res, next) => {
         if (!price) return bad(res, 400, "Please set a price for this service");
 
         const row = await m.addProviderService(req.user.id, serviceId, price);
+        await invalidatePublic("providers");
         res.status(201).json({ success: true, message: "Service added", service: row });
     } catch (error) {
         if (error.code === "23505") return bad(res, 409, "You already offer this service");
@@ -53,6 +55,7 @@ const updateService = async (req, res, next) => {
 
         const row = await m.updateProviderService(req.user.id, Number(req.params.serviceId), { price, is_active });
         if (!row) return bad(res, 404, "You don't offer this service");
+        await invalidatePublic("providers");
         res.status(200).json({ success: true, message: "Service updated", service: row });
     } catch (error) {
         next(error);
@@ -63,6 +66,7 @@ const deleteService = async (req, res, next) => {
     try {
         const row = await m.deleteProviderService(req.user.id, Number(req.params.serviceId));
         if (!row) return bad(res, 404, "You don't offer this service");
+        await invalidatePublic("providers");
         res.status(200).json({ success: true, message: "Service removed", service: row });
     } catch (error) {
         next(error);

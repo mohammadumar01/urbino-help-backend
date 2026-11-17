@@ -4,6 +4,7 @@ const {
     getPublicProviderProfile,
     getOnboardingStatus,
 } = require("../models/providerProfileModel");
+const { invalidatePublic } = require("../middleware/cacheMiddleware");
 
 function bad(res, status, message) {
     return res.status(status).json({ success: false, message });
@@ -40,6 +41,7 @@ const saveProfile = async (req, res, next) => {
         await upsertProviderProfile(req.user.id, data);
         // naam/email ke saath poora profile lautao
         const profile = await getProviderProfile(req.user.id);
+        await invalidatePublic("providers");
         return res.status(200).json({ success: true, message: "Profile saved", profile });
     } catch (error) {
         next(error);
@@ -50,6 +52,7 @@ const saveProfile = async (req, res, next) => {
 const getProfile = async (req, res, next) => {
     try {
         const profile = await getProviderProfile(req.user.id);
+        await invalidatePublic("providers");
         return res.status(200).json({ success: true, profile: profile || null });
     } catch (error) {
         next(error);

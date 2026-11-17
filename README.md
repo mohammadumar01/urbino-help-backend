@@ -373,6 +373,17 @@ npm run migrate
 
 Paused services are hidden from discovery and cannot be booked.
 
+## Scaling (1000+ users)
+
+- `WEB_CONCURRENCY=auto` runs one worker per CPU core (migrations run once in the primary).
+  Keep `WEB_CONCURRENCY x DB_POOL_MAX` below Postgres `max_connections`.
+- Public reads (services, categories, provider discovery/profile, free slots) are cached in
+  Redis for 30-300 s and cleared when the data changes. The API still works without Redis.
+- Load test: `RATE_LIMIT_PER_MIN=1000000 WEB_CONCURRENCY=auto npm start`, then `npm run test:load`
+  (1000 customers, 5000 bookings, 200 concurrent connections). Last local run on a 4-core
+  laptop: ~1,370 req/s, p50 61 ms, p99 832 ms, 0 errors.
+- Rate limits are per worker process; behind several servers use a shared (Redis) store.
+
 ## Tests
 
 ```bash

@@ -1,5 +1,6 @@
 const m = require("../models/providerAvailabilityModel");
 const { validateSchedule, getFreeSlots } = require("../services/availabilityService");
+const { invalidatePublic } = require("../middleware/cacheMiddleware");
 
 function bad(res, status, message) {
     return res.status(status).json({ success: false, message });
@@ -25,6 +26,7 @@ const replaceMyAvailability = async (req, res, next) => {
         const error = validateSchedule(schedule);
         if (error) return bad(res, 400, error);
         const availability = await m.replaceSchedule(req.user.id, schedule);
+        await invalidatePublic("slots");
         res.status(200).json({ success: true, message: "Working hours saved", availability });
     } catch (error) {
         next(error);
@@ -43,6 +45,7 @@ const createProviderAvailability = async (req, res, next) => {
         const error = validateSchedule([...existing, range]);
         if (error) return bad(res, 400, error);
         const availability = await m.createAvailability(req.user.id, range.day_of_week, range.start_time, range.end_time);
+        await invalidatePublic("slots");
         res.status(201).json({ success: true, message: "Working hours added", availability });
     } catch (error) {
         next(error);
@@ -53,6 +56,7 @@ const deleteMyAvailability = async (req, res, next) => {
     try {
         const row = await m.deleteAvailability(req.user.id, Number(req.params.id));
         if (!row) return bad(res, 404, "Time range not found");
+        await invalidatePublic("slots");
         res.status(200).json({ success: true, message: "Time range removed" });
     } catch (error) {
         next(error);

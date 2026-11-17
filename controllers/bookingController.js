@@ -11,6 +11,7 @@ const {
 } = require("../models/bookingModel");
 const { createNotification } = require("../models/notificationModel");
 const { clearCustomerBookingCache } = require("../utils/cacheUtils");
+const { invalidatePublic } = require("../middleware/cacheMiddleware");
 const { refundForBooking } = require("../services/paymentService");
 const { getFreeSlots } = require("../services/availabilityService");
 
@@ -32,9 +33,20 @@ function validateDateTime(booking_date, booking_time) {
     return null;
 }
 
+/** Notification save karo (response se pehle), fail ho to booking na roke. */
+async function notifySafe(tag, ...args) {
+    try {
+        await createNotification(...args);
+    } catch (err) {
+        console.error(`[notify] ${tag}:`, err.message);
+    }
+}
+
 async function invalidateCaches(customerId) {
     await clearCustomerBookingCache(customerId);
     await redisClient.del(CACHE_KEYS.ADMIN_DASHBOARD);
+    // naya/cancel booking -> free slots badle
+    await invalidatePublic("slots");
 }
 
 const createCustomerBooking = async (req, res, next) => {
@@ -100,13 +112,11 @@ const createCustomerBooking = async (req, res, next) => {
 
         // Provider ko turant khabar
         if (booking.provider_id) {
-            createNotification(
-                booking.provider_id,
+            await notifySafe("new booking", booking.provider_id,
                 booking.id,
                 "New booking request",
                 `New ${booking.service_name} booking on ${booking_date} at ${booking.booking_time}.`,
-                "booking_update"
-            ).catch((err) => console.error("[notify] new booking:", err.message));
+                "booking_update");
         }
 
         return res.status(201).json({
@@ -178,13 +188,11 @@ const cancelCustomerBooking = async (req, res, next) => {
 
         const notifyIds = [booking.provider_id, booking.agent_id].filter(Boolean);
         for (const userId of notifyIds) {
-            createNotification(
-                userId,
+            await notifySafe("cancel", userId,
                 booking.id,
                 "Booking cancelled",
                 `Booking #${booking.id} (${booking.service_name}) was cancelled by the customer.`,
-                "booking_update"
-            ).catch((err) => console.error("[notify] cancel:", err.message));
+                "booking_update");
         }
 
         return res.status(200).json({
@@ -241,13 +249,11 @@ const rescheduleCustomerBooking = async (req, res, next) => {
         await invalidateCaches(req.user.id);
 
         if (booking.provider_id) {
-            createNotification(
-                booking.provider_id,
+            await notifySafe("reschedule", booking.provider_id,
                 booking.id,
                 "Booking rescheduled",
                 `Booking #${booking.id} moved to ${booking_date} at ${booking.booking_time}.`,
-                "booking_update"
-            ).catch((err) => console.error("[notify] reschedule:", err.message));
+                "booking_update");
         }
 
         return res.status(200).json({

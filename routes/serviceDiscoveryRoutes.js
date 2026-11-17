@@ -1,4 +1,5 @@
 const express = require("express");
+const { cachePublic } = require("../middleware/cacheMiddleware");
 const router = express.Router();
 
 
@@ -54,6 +55,7 @@ const {
 router.get(
     "/providers",
     // Public: bina login ke bhi customer providers dekh sake
+    cachePublic("providers", 60),
     getDiscoveredProviders
 );
 

@@ -1,4 +1,5 @@
 const express = require("express");
+const { cachePublic } = require("../middleware/cacheMiddleware");
 const router = express.Router();
 
 const authMiddleware = require("../middleware/authMiddleware");
@@ -25,7 +26,7 @@ const providerOnly = [authMiddleware, roleMiddleware(ROLES.PROVIDER)];
  *       - { in: query, name: provider_id, required: true, schema: { type: integer } }
  *       - { in: query, name: date, required: true, schema: { type: string, example: "2026-11-20" } }
  */
-router.get("/slots", c.getAvailableProviderSlots);
+router.get("/slots", cachePublic("slots", 30), c.getAvailableProviderSlots);
 
 /**
  * @swagger

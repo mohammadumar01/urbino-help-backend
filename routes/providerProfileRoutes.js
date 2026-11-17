@@ -1,4 +1,5 @@
 const express = require("express");
+const { cachePublic } = require("../middleware/cacheMiddleware");
 const router = express.Router();
 
 const authMiddleware = require("../middleware/authMiddleware");
@@ -65,6 +66,6 @@ router.get("/onboarding", ...providerOnly, c.getOnboarding);
  *     summary: Public provider profile with rating and completed jobs
  *     tags: [Provider Profile]
  */
-router.get("/:id", c.getPublicProfile);
+router.get("/:id", cachePublic("providers", 60), c.getPublicProfile);
 
 module.exports = router;
