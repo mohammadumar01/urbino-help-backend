@@ -350,6 +350,26 @@ const tomorrow = new Date(Date.now() + 86400000 + 5.5 * 3600000).toISOString().s
     const { rows: [doc] } = await pool.query("SELECT document_url FROM provider_verifications WHERE id = $1", [docId]);
     require("fs").rmSync(require("path").join(__dirname, "..", "private_uploads", doc.document_url), { force: true });
 
+    // ---------- help chat + human support ----------
+    r = await call("POST", "/api/chatbot/message", null, { message: "How do I cancel my booking?" });
+    check("chatbot answers guests", r.status === 200 && r.data.reply?.length > 10, r.data);
+    r = await call("POST", "/api/chatbot/message", cT, { message: "my refund not received", history: [{ role: "assistant", content: "Hi" }] });
+    check("chatbot suggests a person for refunds", r.status === 200 && r.data.handoff === true, r.data);
+    r = await call("POST", "/api/support/tickets", null, { message: "Need help with my booking" });
+    check("guest ticket needs phone", r.status === 400, r.data);
+    r = await call("POST", "/api/support/tickets", cT, { message: "Refund for booking not received", category: "refund", booking_id: bookingId, transcript: [{ role: "user", content: "refund?" }] });
+    check("customer creates support ticket", r.status === 201 && !!r.data.ticket?.id, r.data);
+    const ticketId = r.data.ticket?.id;
+    r = await call("GET", "/api/support/tickets?status=open", cT);
+    check("customer cannot list all tickets", r.status === 403, r.data);
+    r = await call("GET", "/api/support/tickets?status=open", adT);
+    check("admin sees ticket with booking", r.status === 200 && r.data.tickets.some((t) => t.id === ticketId && t.booking_id === bookingId), r.data);
+    r = await call("PATCH", `/api/support/tickets/${ticketId}`, adT, { status: "resolved", admin_note: "Refund processed today" });
+    check("admin resolves ticket", r.status === 200 && r.data.ticket.status === "resolved", r.data);
+    r = await call("GET", "/api/support/my-tickets", cT);
+    check("customer sees resolved ticket with note", r.data.tickets?.[0]?.admin_note === "Refund processed today", r.data);
+    await pool.query("DELETE FROM support_tickets WHERE id = $1", [ticketId]);
+
     // deleted user cannot log in
     await pool.query("UPDATE users SET is_deleted = true WHERE id = $1", [agent.id]);
     check("deleted user login blocked", !(await login(agent.email)));

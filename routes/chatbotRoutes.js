@@ -36,6 +36,7 @@ sendMessage
 
 router.post(
 "/message",
+require("../middleware/optionalAuth"),
 sendMessage
 
 
