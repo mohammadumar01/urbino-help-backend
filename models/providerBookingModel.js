@@ -173,6 +173,7 @@ const query = `
     WHERE id = $1
     AND provider_id = $2
     AND status = '${BOOKING_STATUS.PROVIDER_ACCEPTED}'
+    AND EXISTS (SELECT 1 FROM provider_agents pa WHERE pa.provider_id = $2 AND pa.agent_id = $3)
 
     RETURNING *;
 `;

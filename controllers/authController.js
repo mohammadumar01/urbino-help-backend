@@ -5,7 +5,8 @@ const jwt = require("jsonwebtoken");
 const { createUser, findUserByEmail } = require("../models/userModel");
 
 // Public signup se sirf ye roles ban sakte hain (admin/agent kabhi nahi)
-const SIGNUP_ROLES = [ROLES.CUSTOMER, ROLES.PROVIDER];
+// Professional (agent) khud sign up karke provider ka invite accept karta hai
+const SIGNUP_ROLES = [ROLES.CUSTOMER, ROLES.PROVIDER, ROLES.AGENT];
 
 const register = async (req, res) => {
     try {

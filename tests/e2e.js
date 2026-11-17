@@ -79,10 +79,28 @@ const tomorrow = new Date(Date.now() + 86400000 + 5.5 * 3600000).toISOString().s
     check("provider profile", r.status === 201 || r.status === 200, r.data);
     r = await call("POST", "/api/provider-services", pT, { service_id: service.id, price: 777 });
     check("provider adds service", r.status === 201 || r.status === 200, r.data);
-    r = await call("POST", "/api/provider/agents", pT, { agent_id: agent.id });
-    check("provider adds agent", r.status === 201 || r.status === 200, r.data);
+    // ---------- team invites ----------
+    r = await call("POST", "/api/provider/agents", pT, { email: "nobody@e2e.test" });
+    check("invite unknown email -> 404", r.status === 404, r.data);
+    r = await call("POST", "/api/provider/agents", pT, { email: `customer${ts}@e2e.test` });
+    check("cannot invite a customer", r.status === 400, r.data);
+    r = await call("POST", "/api/provider/agents", pT, { email: agent.email });
+    check("provider invites agent by email", r.status === 201, r.data);
+    r = await call("POST", "/api/provider/agents", pT, { email: agent.email });
+    check("duplicate pending invite blocked", r.status === 409, r.data);
     r = await call("GET", "/api/provider-agents", pT);
-    check("legacy /api/provider-agents works", r.status === 200 && (r.data.agents || []).some((a) => a.agent_id === agent.id), r.data);
+    check("invited agent not in team yet", !(r.data.agents || []).some((a) => a.agent_id === agent.id) && r.data.invites?.length === 1, r.data);
+    r = await call("GET", "/api/agent/invites", aT);
+    const inviteId = r.data.invites?.[0]?.id;
+    check("agent sees invite", r.status === 200 && r.data.invites?.[0]?.provider_name === "E2E Provider", r.data);
+    r = await call("PUT", `/api/agent/invites/${inviteId}/accept`, aT);
+    check("agent accepts invite", r.status === 200, r.data);
+    r = await call("PUT", `/api/agent/invites/${inviteId}/accept`, aT);
+    check("invite cannot be answered twice", r.status === 404, r.data);
+    r = await call("GET", "/api/provider-agents", pT);
+    check("agent now in provider team", r.status === 200 && (r.data.agents || []).some((a) => a.agent_id === agent.id), r.data);
+    r = await call("POST", "/api/auth/register", null, { name: "E2E Pro Signup", email: `pro${ts}@e2e.test`, password: "password123", phone: "9000000005", role: "agent" });
+    check("professional can sign up as agent", r.status === 201 && r.data.user.role === "agent", r.data);
 
     // discovery is public
     r = await call("GET", `/api/service-discovery/providers?service_id=${service.id}`);
@@ -231,6 +249,31 @@ const tomorrow = new Date(Date.now() + 86400000 + 5.5 * 3600000).toISOString().s
     // review
     r = await call("POST", "/api/reviews", cT, { booking_id: bookingId, rating: 5, review: "great" });
     check("review submitted", r.status === 201 || r.status === 200, r.data);
+
+    // ---------- service guarantee ----------
+    r = await call("GET", "/api/booking/my-bookings", cT);
+    check("completed booking can claim rework", r.data.bookings?.find((b) => b.id === bookingId)?.can_claim === true, r.data.bookings?.[0]);
+    r = await call("POST", "/api/claims", cT, { booking_id: bookingId, reason: "short" });
+    check("claim needs a real reason", r.status === 400, r.data);
+    r = await call("POST", "/api/claims", cT, { booking_id: bookingId, reason: "AC still leaking water after service", preferred_date: tomorrow, preferred_time: "10:00" });
+    check("customer requests free rework", r.status === 201, r.data);
+    const claimId = r.data.claim?.id;
+    r = await call("POST", "/api/claims", cT, { booking_id: bookingId, reason: "AC still leaking water after service" });
+    check("only one claim per booking", r.status === 409, r.data);
+    r = await call("GET", "/api/claims/provider", pT);
+    check("provider sees claim", r.data.claims?.some((c) => c.id === claimId && c.status === "requested"), r.data);
+    r = await call("PUT", `/api/claims/${claimId}/accept`, cT, { booking_date: tomorrow, booking_time: "10:00" });
+    check("customer cannot accept claim", r.status === 403, r.data);
+    r = await call("PUT", `/api/claims/${claimId}/accept`, pT, { booking_date: tomorrow, booking_time: "10:00", note: "Will fix pipe" });
+    check("provider schedules free rework", r.status === 200 && !!r.data.rework_booking_id, r.data);
+    const reworkId = r.data.rework_booking_id;
+    r = await call("GET", "/api/booking/my-bookings", cT);
+    const rw = r.data.bookings?.find((b) => b.id === reworkId);
+    check("free rework booking visible, price 0", rw && Number(rw.price) === 0 && rw.rework_of === bookingId, rw);
+    r = await call("POST", "/api/payment/order", cT, { booking_id: reworkId, method: "ONLINE" });
+    check("no payment for free rework", r.status === 400, r.data);
+    r = await call("POST", "/api/claims", cT, { booking_id: reworkId, reason: "Asking rework of a rework booking" });
+    check("rework booking itself cannot be claimed (not completed)", r.status === 400, r.data);
     r = await call("GET", "/api/booking/my-bookings", cT);
     const reviewed = r.data.bookings?.find((b) => b.id === bookingId);
     check("has_review true after review", reviewed?.has_review === true, reviewed);
@@ -262,6 +305,11 @@ const tomorrow = new Date(Date.now() + 86400000 + 5.5 * 3600000).toISOString().s
     r = await call("GET", "/api/provider/my-bookings", pT);
     const declined = r.data.bookings?.find((b) => b.id === dBooking);
     check("declined job back with provider, reason shown", declined?.status === "provider_accepted" && declined?.agent_declined_reason === "Too far from my area", declined);
+    const { rows: [outsider] } = await pool.query(
+      "INSERT INTO users (name,email,password,phone,role) VALUES ('Outsider','outsider' || $1 || '@e2e.test',$2,'9000000006','agent') RETURNING id",
+      [String(ts), hash]);
+    r = await call("PUT", `/api/provider/assign-agent/${dBooking}`, pT, { agent_id: outsider.id });
+    check("cannot assign an agent outside the team", r.status !== 200, r.data);
 
     // ---------- provider onboarding (Step 3) ----------
     r = await call("PUT", "/api/provider-profile/profile", pT, { service_area: "Kota", experience_years: 99 });

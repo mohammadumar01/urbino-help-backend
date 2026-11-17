@@ -332,4 +332,27 @@ router.get("/summary", ...agentOnly, jobs.getSummary);
 router.get("/jobs/:id", ...agentOnly, jobs.getJob);
 router.put("/decline/:id", ...agentOnly, jobs.declineJob);
 
+/**
+ * @swagger
+ * /api/agent/invites:
+ *   get:
+ *     summary: Pending team invites from providers
+ *     tags: [Agent]
+ *     security: [{ bearerAuth: [] }]
+ * /api/agent/invites/{id}/accept:
+ *   put:
+ *     summary: Join the provider's team
+ *     tags: [Agent]
+ *     security: [{ bearerAuth: [] }]
+ * /api/agent/invites/{id}/decline:
+ *   put:
+ *     summary: Decline a team invite
+ *     tags: [Agent]
+ *     security: [{ bearerAuth: [] }]
+ */
+const invites = require("../controllers/agentInviteController");
+router.get("/invites", ...agentOnly, invites.myInvites);
+router.put("/invites/:id/accept", ...agentOnly, invites.acceptInvite);
+router.put("/invites/:id/decline", ...agentOnly, invites.declineInvite);
+
 module.exports = router;

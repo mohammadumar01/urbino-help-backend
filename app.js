@@ -152,6 +152,7 @@ app.use("/api/services", serviceRoutes);
 app.use("/api/chatbot", chatbotRoutes);
 app.use("/api/service-discovery", serviceDiscoveryRoutes);
 app.use("/api/support", require("./routes/supportRoutes"));
+app.use("/api/claims", require("./routes/claimRoutes"));
 
 // API docs production mein band (ENABLE_API_DOCS=true se khol sakte ho)
 if (!isProd || process.env.ENABLE_API_DOCS === "true") {

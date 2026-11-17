@@ -1,5 +1,6 @@
 
 const express = require("express");
+const invites = require("../controllers/agentInviteController");
 const router = express.Router();
 
 const authMiddleware = require("../middleware/authMiddleware");
@@ -33,7 +34,15 @@ router.get(
     "/",
     authMiddleware,
     roleMiddleware(ROLES.PROVIDER),
-    getMyAgents
+    invites.listTeam
+);
+
+// Pending invite cancel (":agent_id" wale delete se pehle)
+router.delete(
+    "/invites/:id",
+    authMiddleware,
+    roleMiddleware(ROLES.PROVIDER),
+    invites.cancelInvite
 );
 
 /**
@@ -72,7 +81,8 @@ router.post(
     "/",
     authMiddleware,
     roleMiddleware(ROLES.PROVIDER),
-    addAgent
+    // Ab seedha jodne ki jagah invite jaata hai; agent accept kare tab team mein
+    invites.inviteAgent
 );
 
 /**

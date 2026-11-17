@@ -110,6 +110,8 @@ const assignAgentToBooking = async (
         WHERE id = $1
         AND provider_id = $2
         AND status = '${BOOKING_STATUS.PROVIDER_ACCEPTED}'
+        -- Sirf apni team ka agent (jisne invite accept kiya ho)
+        AND EXISTS (SELECT 1 FROM provider_agents pa WHERE pa.provider_id = $2 AND pa.agent_id = $3)
 
         RETURNING *;
     `;

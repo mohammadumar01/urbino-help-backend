@@ -114,8 +114,14 @@ const getBookingsByCustomerId = async (customer_id, limit, offset, search, statu
             b.on_the_way_at,
             b.started_at,
             -- Start code sirf tab dikhao jab professional confirm ho chuka ho aur kaam shuru na hua ho
-            CASE WHEN b.status IN ('agent_accepted', 'on_the_way') THEN b.start_otp END AS start_otp
+            CASE WHEN b.status IN ('agent_accepted', 'on_the_way') THEN b.start_otp END AS start_otp,
+            b.rework_of,
+            cl.status AS claim_status,
+            cl.provider_note AS claim_note,
+            (b.status = 'completed' AND b.rework_of IS NULL AND cl.id IS NULL
+             AND b.completed_at >= NOW() - interval '7 days') AS can_claim
         FROM bookings b
+        LEFT JOIN service_claims cl ON cl.booking_id = b.id
         LEFT JOIN users p ON p.id = b.provider_id
         LEFT JOIN users a ON a.id = b.agent_id
         LEFT JOIN reviews r ON r.booking_id = b.id
