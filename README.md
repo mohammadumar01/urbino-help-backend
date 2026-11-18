@@ -358,6 +358,12 @@ npm run migrate
   `provider_earning` on every successful payment.
 - **Without Razorpay keys** (development) a built-in test gateway is used, so the full flow
   works without real money. In production without keys only cash is offered.
+- **Provider payouts:** online money reaches Urbino, so Urbino owes the provider their
+  `provider_earning`; with cash the provider holds the money and owes Urbino the `platform_fee`.
+  `GET /api/payment/provider/earnings` shows a provider their earnings and balance;
+  `GET/POST /api/payment/admin/payouts` lists every balance and records a settlement
+  (`direction`: `to_provider` | `from_provider`). A settlement can never exceed the due balance,
+  and a per-provider lock stops two admins recording the same payout twice.
 
 ## Provider onboarding
 

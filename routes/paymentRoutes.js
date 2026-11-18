@@ -5,6 +5,7 @@ const authMiddleware = require("../middleware/authMiddleware");
 const roleMiddleware = require("../middleware/roleMiddleware");
 const ROLES = require("../constants/roles");
 const c = require("../controllers/paymentController");
+const payouts = require("../controllers/payoutController");
 
 /**
  * @swagger
@@ -78,6 +79,27 @@ router.put(
     roleMiddleware(ROLES.PROVIDER, ROLES.AGENT),
     c.markCashCollected
 );
+
+/**
+ * @swagger
+ * /api/payment/provider/earnings:
+ *   get:
+ *     summary: Provider earnings, commission, settlement balance and payout history
+ *     tags: [Payments]
+ *     security: [{ bearerAuth: [] }]
+ * /api/payment/admin/payouts:
+ *   get:
+ *     summary: Settlement balance of every provider (admin)
+ *     tags: [Payments]
+ *     security: [{ bearerAuth: [] }]
+ *   post:
+ *     summary: Record a payout to a provider, or commission received from a provider (admin)
+ *     tags: [Payments]
+ *     security: [{ bearerAuth: [] }]
+ */
+router.get("/provider/earnings", authMiddleware, roleMiddleware(ROLES.PROVIDER), payouts.myEarnings);
+router.get("/admin/payouts", authMiddleware, roleMiddleware(ROLES.ADMIN), payouts.listPayouts);
+router.post("/admin/payouts", authMiddleware, roleMiddleware(ROLES.ADMIN), payouts.createPayout);
 
 /**
  * @swagger

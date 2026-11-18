@@ -246,6 +246,33 @@ const tomorrow = new Date(Date.now() + 86400000 + 5.5 * 3600000).toISOString().s
     r = await call("PUT", `/api/payment/booking/${cashBooking}/cash-collected`, pT);
     check("cash cannot be recorded twice", r.status === 409, r.data);
 
+    // ---------- provider earnings + payouts ----------
+    // Online payment refund ho chuka; cash 777 provider ke paas -> provider Urbino ko 15% commission dega
+    r = await call("GET", "/api/payment/provider/earnings", pT);
+    const owed = Math.round(777 * 15) / 100;
+    check("provider earnings summary", r.status === 200 && r.data.summary.paid_jobs === 1 && r.data.summary.cash_collected === 777 && r.data.summary.commission === owed, r.data.summary);
+    check("provider owes commission on cash job", r.data.balance?.balance === -owed, r.data.balance);
+    check("earnings list has the cash job", r.data.payments?.[0]?.booking_id === cashBooking, r.data.payments?.[0]);
+    r = await call("GET", "/api/payment/provider/earnings", cT);
+    check("customer cannot read provider earnings", r.status === 403, r.data);
+    r = await call("GET", "/api/payment/admin/payouts", adT);
+    check("admin sees provider balance", r.status === 200 && r.data.providers.some((p) => p.provider_id === providerId && p.balance === -owed), r.data.totals);
+    r = await call("GET", "/api/payment/admin/payouts", pT);
+    check("provider cannot read all balances", r.status === 403, r.data);
+    r = await call("POST", "/api/payment/admin/payouts", adT, { provider_id: providerId, direction: "to_provider", amount: 10 });
+    check("cannot pay out when provider owes", r.status === 409, r.data);
+    r = await call("POST", "/api/payment/admin/payouts", adT, { provider_id: providerId, direction: "from_provider", amount: owed + 50 });
+    check("cannot settle more than due", r.status === 400, r.data);
+    r = await call("POST", "/api/payment/admin/payouts", adT, { provider_id: providerId, direction: "from_provider", amount: -5 });
+    check("negative amount rejected", r.status === 400, r.data);
+    const [s1, s2] = await Promise.all([
+      call("POST", "/api/payment/admin/payouts", adT, { provider_id: providerId, direction: "from_provider", amount: owed, reference: "UPI123" }),
+      call("POST", "/api/payment/admin/payouts", adT, { provider_id: providerId, direction: "from_provider", amount: owed, reference: "UPI123" }),
+    ]);
+    check("parallel settlements: exactly one recorded", [s1.status, s2.status].sort().join() === "201,409", [s1.data, s2.data]);
+    r = await call("GET", "/api/payment/provider/earnings", pT);
+    check("balance settled to zero + payout listed", r.data.balance?.balance === 0 && r.data.payouts?.[0]?.reference === "UPI123", r.data.balance);
+
     // review
     r = await call("POST", "/api/reviews", cT, { booking_id: bookingId, rating: 5, review: "great" });
     check("review submitted", r.status === 201 || r.status === 200, r.data);
