@@ -9,6 +9,8 @@ const BASE = (process.env.GEOCODER_URL || "https://nominatim.openstreetmap.org")
 const COUNTRY = process.env.GEOCODER_COUNTRY ?? "in";
 const UA = process.env.GEOCODER_USER_AGENT || "UrbinoHelp/1.0 (service marketplace)";
 const TTL = 7 * 24 * 3600;
+// Nominatim busy/down ho to Photon (komoot, OSM data) se try karo
+const FALLBACK = (process.env.GEOCODER_FALLBACK_URL ?? "https://photon.komoot.io").replace(/\/$/, "");
 
 // Nominatim policy: max ~1 request/second. Har worker mein chhoti queue.
 let last = 0;
@@ -50,6 +52,53 @@ function shape(p) {
     };
 }
 
+/** Photon GeoJSON feature -> hamara shape */
+function shapePhoton(f) {
+    const p = f.properties || {};
+    const [lng, lat] = f.geometry?.coordinates || [];
+    const city = p.city || p.town || p.village || p.county || null;
+    const first = [p.housenumber, p.street].filter(Boolean).join(" ") || p.name;
+    const label = [p.name !== first ? p.name : null, first, p.district, city, p.state, p.postcode].filter(Boolean).join(", ");
+    return {
+        label: label || p.name || "Pinned location",
+        short: [first, city].filter(Boolean).join(", ") || label,
+        city,
+        state: p.state || null,
+        pincode: p.postcode || null,
+        latitude: Number(lat),
+        longitude: Number(lng),
+    };
+}
+
+async function photonSearch(query, near) {
+    const params = new URLSearchParams({ q: query, limit: "8", lang: "en" });
+    if (near) {
+        params.set("lat", String(near.lat));
+        params.set("lon", String(near.lng));
+    }
+    const r = await politeFetch(`${FALLBACK}/api/?${params}`);
+    return (r.features || [])
+        .filter((f) => !COUNTRY || String(f.properties?.countrycode || "").toLowerCase() === COUNTRY)
+        .slice(0, 6)
+        .map(shapePhoton);
+}
+
+async function photonReverse(lat, lng) {
+    const r = await politeFetch(`${FALLBACK}/reverse?lat=${lat}&lon=${lng}&lang=en`);
+    return r.features?.[0] ? shapePhoton(r.features[0]) : null;
+}
+
+/** Pehle primary, fail ho to fallback (agar set ho). */
+async function withFallback(primary, fallback) {
+    try {
+        return await primary();
+    } catch (err) {
+        if (!FALLBACK) throw err;
+        console.warn("[geo] primary geocoder failed, using fallback:", err.message);
+        return fallback();
+    }
+}
+
 async function search(q, near) {
     const query = String(q).trim().slice(0, 120);
     const params = new URLSearchParams({ q: query, format: "jsonv2", addressdetails: "1", limit: "6" });
@@ -60,18 +109,28 @@ async function search(q, near) {
         params.set("viewbox", `${near.lng - d},${near.lat + d},${near.lng + d},${near.lat - d}`);
     }
     const key = `geo:s:${query.toLowerCase()}:${near ? `${near.lat.toFixed(1)},${near.lng.toFixed(1)}` : ""}`;
-    return cached(key, async () => (await politeFetch(`${BASE}/search?${params}`)).map(shape));
+    return cached(key, () =>
+        withFallback(
+            async () => (await politeFetch(`${BASE}/search?${params}`)).map(shape),
+            () => photonSearch(query, near)
+        )
+    );
 }
 
 async function reverse(lat, lng) {
     // ~11 m tak round: cache hit zyada, privacy bhi behtar
     const rl = lat.toFixed(4);
     const rg = lng.toFixed(4);
-    return cached(`geo:r:${rl},${rg}`, async () => {
-        const p = await politeFetch(`${BASE}/reverse?lat=${rl}&lon=${rg}&format=jsonv2&addressdetails=1&zoom=18`);
-        if (!p || p.error) return null;
-        return shape(p);
-    });
+    return cached(`geo:r:${rl},${rg}`, () =>
+        withFallback(
+            async () => {
+                const p = await politeFetch(`${BASE}/reverse?lat=${rl}&lon=${rg}&format=jsonv2&addressdetails=1&zoom=18`);
+                if (!p || p.error) return null;
+                return shape(p);
+            },
+            () => photonReverse(rl, rg)
+        )
+    );
 }
 
 module.exports = { search, reverse };

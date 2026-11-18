@@ -4,7 +4,8 @@ const cluster = require("cluster");
 const os = require("os");
 
 // ---------- Required config check ----------
-const REQUIRED = ["DB_HOST", "DB_USER", "DB_NAME", "JWT_SECRET"];
+// Cloud par ek DATABASE_URL kaafi hai; local par DB_* chahiye
+const REQUIRED = process.env.DATABASE_URL ? ["JWT_SECRET"] : ["DB_HOST", "DB_USER", "DB_NAME", "JWT_SECRET"];
 const missing = REQUIRED.filter((k) => !process.env[k]);
 if (missing.length) {
     console.error(`Missing required env vars: ${missing.join(", ")}. See .env.example`);

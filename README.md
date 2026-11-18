@@ -365,6 +365,23 @@ npm run migrate
   (`direction`: `to_provider` | `from_provider`). A settlement can never exceed the due balance,
   and a per-provider lock stops two admins recording the same payout twice.
 
+## Deploy a live demo (free tiers)
+
+| Part | Service | What to set |
+|---|---|---|
+| Database | Neon (Postgres) | copy the connection string |
+| Cache (optional) | Upstash Redis | copy the `rediss://` URL |
+| Backend | Render (uses `render.yaml`) | `DATABASE_URL`, `REDIS_URL`, `FRONTEND_URL` (the Vercel URL), Razorpay **test** keys or `PAYMENT_DEMO_MODE=true`, `DEMO_PASSWORD` |
+| Frontend | Vercel (Next.js) | `NEXT_PUBLIC_API_URL` = the Render URL |
+
+1. On first start the backend sees an empty database and creates the whole schema from
+   `database/baseline.sql`, then runs newer migrations.
+2. Load demo data once (Render shell or locally with the same `DATABASE_URL`):
+   `ALLOW_DEMO_SEED=true DEMO_PASSWORD=... npm run seed:demo`
+   It prints the demo logins (admin, customer, provider, agent @demo.urbinohelp.in).
+3. Never use Razorpay **live** keys on a demo. `PAYMENT_DEMO_MODE=true` shows a test checkout
+   when no keys are set; with test keys (`rzp_test_...`) the real Razorpay test checkout opens.
+
 ## Maps, live tracking and notifications
 
 Maps use OpenStreetMap (no API key). Address search goes through the backend so results are
@@ -384,6 +401,14 @@ self-hosted Nominatim (or another compatible service) for heavy production traff
 
 Privacy: the agent's location is stored as one row per booking and deleted as soon as the job
 is completed or cancelled.
+
+## Admin catalog and reports
+
+| Endpoint | Purpose |
+|---|---|
+| `GET/POST /api/admin/catalog/services`, `PUT /api/admin/catalog/services/:id` | Add/edit services, hide/show (`is_active`); hidden services can't be seen or booked |
+| `GET/POST /api/admin/catalog/categories`, `PUT /api/admin/catalog/categories/:id` | Categories with service counts; hiding a category hides its services |
+| `GET /api/admin/reports?from=&to=` | Revenue, commission, bookings, completion/cancel rate, rating, speed of service, daily series, top services/providers, payment split |
 
 ## Provider onboarding
 

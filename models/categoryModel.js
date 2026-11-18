@@ -8,6 +8,7 @@ const getAllCategories = async () => {
             name,
             description
         FROM categories
+        WHERE is_active
         ORDER BY id ASC;
     `;
 

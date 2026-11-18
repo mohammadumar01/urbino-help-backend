@@ -27,7 +27,7 @@ const getServiceForBooking = async (service_id, provider_id) => {
             ON u.id = ps.provider_id
            AND u.role = 'provider'
            AND u.is_deleted IS NOT TRUE
-        WHERE s.id = $1
+        WHERE s.id = $1 AND s.is_active
         `,
         [service_id, provider_id || null]
     );

@@ -4,6 +4,7 @@
  *  - RAZORPAY_KEY_ID + RAZORPAY_KEY_SECRET set hain  -> asli Razorpay (test ya live keys)
  *  - keys nahi hain aur NODE_ENV != production       -> "mock" gateway (sirf development/testing)
  *  - production mein keys nahi                        -> online payment band, sirf cash
+ *    (sirf demo deployment ke liye PAYMENT_DEMO_MODE=true: test checkout, koi asli paisa nahi)
  *
  * Razorpay ka REST API seedha fetch se use hota hai (SDK ki zaroorat nahi).
  */
@@ -17,7 +18,7 @@ const MOCK_SECRET = "urbino-mock-gateway-secret";
 
 function mode() {
     if (KEY_ID && KEY_SECRET) return "razorpay";
-    if (!IS_PROD && process.env.PAYMENT_MOCK !== "false") return "mock";
+    if ((!IS_PROD || process.env.PAYMENT_DEMO_MODE === "true") && process.env.PAYMENT_MOCK !== "false") return "mock";
     return "disabled";
 }
 

@@ -11,6 +11,9 @@ const path = require("path");
 
 const MIGRATIONS_DIR = path.join(__dirname, "migrations");
 const LOCK_ID = 727272; // ek hi waqt mein do instances migration na chalayein
+const BASELINE_FILE = path.join(__dirname, "baseline.sql");
+// baseline.sql is migration tak ka schema rakhta hai (baseline dobara banao to ise badlo)
+const BASELINE_INCLUDES = "010_service_catalog.sql";
 
 async function runMigrations(pool) {
     const client = await pool.connect();
@@ -31,6 +34,27 @@ async function runMigrations(pool) {
             .readdirSync(MIGRATIONS_DIR)
             .filter((f) => f.endsWith(".sql"))
             .sort();
+
+        // Khaali DB (naya cloud database): baseline se poora schema ek baar mein banao,
+        // aur jo migrations baseline mein shaamil hain unhe "done" maan lo.
+        const hasUsers = (await client.query("SELECT to_regclass('public.users') IS NOT NULL AS ok")).rows[0].ok;
+        if (!hasUsers && done.size === 0) {
+            console.log("[migrate] empty database: applying baseline schema");
+            const sql = fs.readFileSync(BASELINE_FILE, "utf8");
+            try {
+                await client.query("BEGIN");
+                await client.query(sql);
+                await client.query("SET search_path TO public");
+                for (const f of files.filter((name) => name <= BASELINE_INCLUDES)) {
+                    await client.query("INSERT INTO schema_migrations (name) VALUES ($1)", [f]);
+                    done.add(f);
+                }
+                await client.query("COMMIT");
+            } catch (err) {
+                await client.query("ROLLBACK");
+                throw new Error(`Baseline schema failed: ${err.message}`);
+            }
+        }
 
         for (const file of files) {
             if (done.has(file)) continue;

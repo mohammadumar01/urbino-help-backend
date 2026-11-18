@@ -7,7 +7,9 @@ const { createClient } = require("redis");
  */
 
 const REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379";
-const REDIS_ENABLED = process.env.REDIS_ENABLED !== "false";
+// Production mein REDIS_URL na ho to cache band (localhost par connect karke errors na aayein)
+const REDIS_ENABLED =
+    process.env.REDIS_ENABLED !== "false" && (Boolean(process.env.REDIS_URL) || process.env.NODE_ENV !== "production");
 const OP_TIMEOUT_MS = 500;
 
 let client = null;

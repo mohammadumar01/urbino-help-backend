@@ -144,6 +144,7 @@ app.use("/api/reviews", reviewRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/admin", adminVerificationRoutes);
+app.use("/api/admin", require("./routes/adminCatalogRoutes"));
 app.use("/api/agent", agentRoutes);
 app.use("/api/agent-services", agentServiceRoutes);
 app.use("/api/payment", paymentRoutes);

@@ -20,7 +20,7 @@ const getServices = async (
         FROM services s
         JOIN categories c
             ON s.category_id = c.id
-        WHERE 1 = 1
+        WHERE s.is_active AND c.is_active
     `;
 
     const values = [];
@@ -86,7 +86,8 @@ const getTotalServices = async (
     let query = `
         SELECT COUNT(*) AS count
         FROM services s
-        WHERE 1 = 1
+        JOIN categories c ON c.id = s.category_id
+        WHERE s.is_active AND c.is_active
     `;
 
     const values = [];
@@ -139,7 +140,7 @@ const getServiceById = async (id) => {
         FROM services s
         JOIN categories c
             ON s.category_id = c.id
-        WHERE s.id = $1
+        WHERE s.id = $1 AND s.is_active AND c.is_active
         LIMIT 1
     `;
 

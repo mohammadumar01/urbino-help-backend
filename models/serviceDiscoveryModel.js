@@ -50,6 +50,7 @@ const discoverProviders = async (
 
         WHERE ps.service_id = $1
           AND ps.is_active
+          AND s.is_active
           AND u.role = 'provider'
           AND u.is_deleted IS NOT TRUE
     `;

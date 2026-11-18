@@ -353,6 +353,41 @@ const tomorrow = new Date(Date.now() + 86400000 + 5.5 * 3600000).toISOString().s
     r = await call("GET", "/api/admin/dashboard", cT);
     check("customer blocked from admin", r.status === 403, r.data);
 
+    // ---------- admin catalog + reports ----------
+    r = await call("GET", "/api/admin/catalog/categories", adT);
+    check("admin lists categories", r.status === 200 && r.data.categories.length > 0, r.data);
+    const catName = `E2E Cat ${ts}`;
+    r = await call("POST", "/api/admin/catalog/categories", adT, { name: catName });
+    const catId = r.data.category?.id;
+    check("admin adds category", r.status === 201 && !!catId, r.data);
+    r = await call("POST", "/api/admin/catalog/categories", adT, { name: catName.toLowerCase() });
+    check("duplicate category rejected", r.status === 409, r.data);
+    r = await call("POST", "/api/admin/catalog/services", adT, { name: "E2E Deep Clean", category_id: catId, base_price: -5 });
+    check("negative service price rejected", r.status === 400, r.data);
+    r = await call("POST", "/api/admin/catalog/services", adT, { name: "E2E Deep Clean", category_id: catId, base_price: 999, description: "test" });
+    const newSvc = r.data.service?.id;
+    check("admin adds service", r.status === 201 && !!newSvc, r.data);
+    r = await call("POST", "/api/admin/catalog/services", cT, { name: "Hack", category_id: catId, base_price: 1 });
+    check("customer cannot add service", r.status === 403, r.data);
+    r = await call("GET", `/api/services/${newSvc}`);
+    check("new service visible to customers", r.status === 200, r.data);
+    r = await call("PUT", `/api/admin/catalog/services/${newSvc}`, adT, { is_active: false });
+    check("admin hides service", r.status === 200 && r.data.service.is_active === false, r.data);
+    r = await call("GET", `/api/services/${newSvc}`);
+    check("hidden service not visible", r.status === 404, r.data);
+    r = await call("POST", "/api/booking/create", cT, { service_id: newSvc, address: "Hidden service road", booking_date: tomorrow, booking_time: "12:00" });
+    check("hidden service cannot be booked", r.status === 404, r.data);
+    r = await call("GET", "/api/admin/catalog/services?status=inactive", adT);
+    check("admin still sees hidden service", r.data.services?.some((s) => s.id === newSvc), r.data);
+    r = await call("GET", "/api/admin/reports", adT);
+    check("admin report (30 days)", r.status === 200 && r.data.range.days === 30 && r.data.daily.length === 30 && r.data.totals.bookings > 0, r.data.totals);
+    r = await call("GET", "/api/admin/reports?from=2026-02-10&to=2026-01-01", adT);
+    check("report rejects reversed range", r.status === 400, r.data);
+    r = await call("GET", "/api/admin/reports", pT);
+    check("provider cannot see reports", r.status === 403, r.data);
+    await pool.query("DELETE FROM services WHERE id = $1", [newSvc]);
+    await pool.query("DELETE FROM categories WHERE id = $1", [catId]);
+
     // agent declines -> back to provider
     r = await call("POST", "/api/booking/create", cT, { service_id: service.id, address: "Decline Lane", booking_date: tomorrow, booking_time: "17:00", provider_id: providerId });
     const dBooking = r.data.booking.id;
