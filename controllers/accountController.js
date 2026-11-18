@@ -69,42 +69,127 @@ const changePassword = async (req, res, next) => {
     }
 };
 
+const mailer = require("../services/mailer");
+
+const CODE_MINUTES = 15;
+const hashCode = (userId, code) =>
+    crypto.createHmac("sha256", process.env.JWT_SECRET || "urbino").update(`${userId}:${code}`).digest("hex");
+
+/** Call wala tareeka: support team verify karke admin panel se temporary password deti hai */
+async function requestCallback(user, phone) {
+    const open = await pool.query(
+        "SELECT 1 FROM support_tickets WHERE user_id = $1 AND category = 'account' AND status <> 'resolved' AND message LIKE 'Password reset%' LIMIT 1",
+        [user.id]
+    );
+    if (!open.rows[0]) {
+        await pool.query(
+            `INSERT INTO support_tickets (user_id, name, phone, category, message)
+             VALUES ($1, $2, $3, 'account', $4)`,
+            [user.id, user.name, phone, "Password reset requested. Call the registered number to verify, then use Users > Reset password."]
+        );
+    }
+}
+
 /**
- * POST /api/account/forgot-password { email, phone }
- * Email/SMS service abhi nahi hai, isliye support team ko request jaati hai: woh
- * registered number par call karke verify karti hai aur admin panel se temporary password deti hai.
- * Hamesha same jawab (koi pata na laga sake ki account hai ya nahi).
+ * POST /api/account/forgot-password { email, phone? }
+ *  - Email (SMTP) chalu ho: 6-digit code email par (15 min). channel = "email"
+ *  - Warna: support team registered number par call karegi. channel = "call" (phone zaroori)
+ * Jawab hamesha same - koi pata na laga sake ki account hai ya nahi.
  */
 const forgotPassword = async (req, res, next) => {
     try {
         const email = String(req.body?.email ?? "").trim().toLowerCase();
         const phone = cleanPhone(req.body?.phone);
-        if (!email.includes("@") || !PHONE.test(phone)) return bad(res, 400, "Enter your email and the 10-digit mobile number on your account.");
+        const viaEmail = mailer.mailEnabled();
+        if (!email.includes("@")) return bad(res, 400, "Enter the email on your account.");
+        if (!viaEmail && !PHONE.test(phone)) return bad(res, 400, "Enter your email and the 10-digit mobile number on your account.");
 
         const u = await pool.query("SELECT id, name, phone FROM users WHERE lower(email) = $1 AND is_deleted IS NOT TRUE", [email]);
         const user = u.rows[0];
-        if (user && cleanPhone(user.phone) === phone) {
-            // Ek user ki ek hi khuli request
-            const open = await pool.query(
-                "SELECT 1 FROM support_tickets WHERE user_id = $1 AND category = 'account' AND status <> 'resolved' AND message LIKE 'Password reset%' LIMIT 1",
-                [user.id]
-            );
-            if (!open.rows[0]) {
-                await pool.query(
-                    `INSERT INTO support_tickets (user_id, name, phone, category, message)
-                     VALUES ($1, $2, $3, 'account', $4)`,
-                    [user.id, user.name, phone, "Password reset requested. Call the registered number to verify, then use Users > Reset password."]
+
+        if (viaEmail) {
+            let debugCode;
+            if (user) {
+                // 1 minute mein ek hi code (email spam se bachav)
+                const recent = await pool.query(
+                    "SELECT 1 FROM password_reset_codes WHERE user_id = $1 AND created_at > now() - interval '60 seconds' LIMIT 1",
+                    [user.id]
                 );
+                if (!recent.rows[0]) {
+                    const code = String(crypto.randomInt(100000, 1000000));
+                    await pool.query("UPDATE password_reset_codes SET used_at = now() WHERE user_id = $1 AND used_at IS NULL", [user.id]);
+                    await pool.query(
+                        "INSERT INTO password_reset_codes (user_id, code_hash, expires_at) VALUES ($1, $2, now() + ($3 || ' minutes')::interval)",
+                        [user.id, hashCode(user.id, code), String(CODE_MINUTES)]
+                    );
+                    try {
+                        await mailer.sendMail({ to: email, ...mailer.resetCodeEmail(user.name, code, CODE_MINUTES) });
+                    } catch (err) {
+                        // Email fail ho to call wala tareeka backup
+                        console.error("[mail] reset code:", err.message);
+                        if (PHONE.test(cleanPhone(user.phone))) await requestCallback(user, cleanPhone(user.phone));
+                    }
+                    if (mailer.isDebug()) debugCode = code;
+                }
             }
+            return res.json({
+                success: true,
+                channel: "email",
+                message: `If an account exists for this email, we've sent a 6-digit code to it. It expires in ${CODE_MINUTES} minutes.`,
+                ...(debugCode ? { debug_code: debugCode } : {}),
+            });
         }
+
+        if (user && cleanPhone(user.phone) === phone) await requestCallback(user, phone);
         res.json({
             success: true,
+            channel: "call",
             message: "If these details match an account, our team will call your registered number within a few hours to reset your password.",
         });
     } catch (e) {
         next(e);
     }
 };
+
+/** POST /api/account/reset-password { email, code, new_password } */
+const resetPassword = async (req, res, next) => {
+    try {
+        const email = String(req.body?.email ?? "").trim().toLowerCase();
+        const code = String(req.body?.code ?? "").replace(/[^0-9]/g, "");
+        const problem = passwordProblem(req.body?.new_password);
+        if (problem) return bad(res, 400, problem);
+        const wrong = () => bad(res, 400, "That code is wrong or has expired. Ask for a new code.");
+        if (!email.includes("@") || code.length !== 6) return wrong();
+
+        const u = await pool.query("SELECT id FROM users WHERE lower(email) = $1 AND is_deleted IS NOT TRUE", [email]);
+        const user = u.rows[0];
+        if (!user) return wrong();
+        const r = await pool.query(
+            `SELECT id, code_hash, attempts FROM password_reset_codes
+             WHERE user_id = $1 AND used_at IS NULL AND expires_at > now()
+             ORDER BY created_at DESC LIMIT 1`,
+            [user.id]
+        );
+        const row = r.rows[0];
+        if (!row || row.attempts >= 5) return wrong();
+        const ok = crypto.timingSafeEqual(Buffer.from(row.code_hash.trim(), "hex"), Buffer.from(hashCode(user.id, code), "hex"));
+        if (!ok) {
+            await pool.query("UPDATE password_reset_codes SET attempts = attempts + 1 WHERE id = $1", [row.id]);
+            return wrong();
+        }
+        await pool.query("UPDATE password_reset_codes SET used_at = now() WHERE id = $1", [row.id]);
+        await pool.query(
+            "UPDATE users SET password = $2, must_change_password = FALSE, password_changed_at = CURRENT_TIMESTAMP WHERE id = $1",
+            [user.id, await bcrypt.hash(req.body.new_password, 10)]
+        );
+        res.json({ success: true, message: "Password reset. You can log in with your new password." });
+    } catch (e) {
+        next(e);
+    }
+};
+
+/** GET /api/account/reset-options -> frontend jaane ki email code chalega ya call */
+const resetOptions = (req, res) => res.json({ success: true, channel: mailer.mailEnabled() ? "email" : "call" });
 
 /** POST /api/admin/users/:id/reset-password  -> ek baar dikhne wala temporary password */
 const adminResetPassword = async (req, res, next) => {
@@ -136,4 +221,4 @@ const adminResetPassword = async (req, res, next) => {
     }
 };
 
-module.exports = { me, updateProfile, changePassword, forgotPassword, adminResetPassword, passwordProblem };
+module.exports = { me, updateProfile, changePassword, forgotPassword, resetPassword, resetOptions, adminResetPassword, passwordProblem };

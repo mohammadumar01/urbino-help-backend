@@ -26,12 +26,22 @@ const router = express.Router();
  *     security: [{ bearerAuth: [] }]
  * /api/account/forgot-password:
  *   post:
- *     summary: Ask support to reset the password { email, phone } (same reply whether or not the account exists)
+ *     summary: Start a password reset { email, phone? } - emails a 6-digit code when SMTP is set, else support calls back
+ *     tags: [Account]
+ * /api/account/reset-password:
+ *   post:
+ *     summary: Set a new password with the emailed code { email, code, new_password }
+ *     tags: [Account]
+ * /api/account/reset-options:
+ *   get:
+ *     summary: Which reset channel is active ("email" or "call")
  *     tags: [Account]
  */
 router.get("/me", authMiddleware, c.me);
 router.put("/profile", authMiddleware, c.updateProfile);
 router.put("/password", authMiddleware, c.changePassword);
+router.get("/reset-options", c.resetOptions);
 router.post("/forgot-password", c.forgotPassword);
+router.post("/reset-password", c.resetPassword);
 
 module.exports = router;

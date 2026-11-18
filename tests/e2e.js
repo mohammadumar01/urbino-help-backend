@@ -406,14 +406,38 @@ const tomorrow = new Date(Date.now() + 86400000 + 5.5 * 3600000).toISOString().s
     check("account: password changed", r.status === 200, r.data);
     r = await call("POST", "/api/auth/login", null, { email: acctEmail, password: "newpass123" });
     check("account: login with new password", r.status === 200 && !!r.data.token, r.data);
-    r = await call("POST", "/api/account/forgot-password", null, { email: acctEmail, phone: "9000000000" });
-    const genericMsg = r.data.message;
-    check("forgot: wrong phone gives generic reply", r.status === 200 && !!genericMsg, r.data);
-    r = await call("POST", "/api/account/forgot-password", null, { email: acctEmail, phone: "9876543210" });
-    check("forgot: same reply when details match", r.status === 200 && r.data.message === genericMsg, r.data);
     const acctId = (await pool.query("SELECT id FROM users WHERE email = $1", [acctEmail])).rows[0].id;
-    r = await call("GET", "/api/support/tickets", adT);
-    check("forgot: support ticket created", JSON.stringify(r.data).includes("Password reset"), r.status);
+    const channel = (await call("GET", "/api/account/reset-options")).data.channel;
+    if (channel === "email") {
+      // Server MAIL_DEBUG=true ke saath: code response mein aata hai (sirf development)
+      r = await call("POST", "/api/account/forgot-password", null, { email: `nobody${ts}@e2e.test` });
+      const genericMsg = r.data.message;
+      check("forgot(email): unknown email gives generic reply, no code", r.status === 200 && !r.data.debug_code, r.data);
+      r = await call("POST", "/api/account/forgot-password", null, { email: acctEmail.toUpperCase() });
+      const code = r.data.debug_code;
+      check("forgot(email): same reply + code for real account", r.data.message === genericMsg && /^\d{6}$/.test(code || ""), r.data);
+      r = await call("POST", "/api/account/forgot-password", null, { email: acctEmail });
+      check("forgot(email): no second code within a minute", !r.data.debug_code, r.data);
+      const wrongCode = code === "111111" ? "222222" : "111111";
+      r = await call("POST", "/api/account/reset-password", null, { email: acctEmail, code: wrongCode, new_password: "viaemail123" });
+      check("reset: wrong code rejected", r.status === 400, r.data);
+      r = await call("POST", "/api/account/reset-password", null, { email: acctEmail, code, new_password: "weak" });
+      check("reset: weak password rejected", r.status === 400, r.data);
+      r = await call("POST", "/api/account/reset-password", null, { email: acctEmail, code, new_password: "viaemail123" });
+      check("reset: password set with emailed code", r.status === 200, r.data);
+      r = await call("POST", "/api/account/reset-password", null, { email: acctEmail, code, new_password: "again12345" });
+      check("reset: code works only once", r.status === 400, r.data);
+      r = await call("POST", "/api/auth/login", null, { email: acctEmail, password: "viaemail123" });
+      check("reset: login with new password", r.status === 200 && !!r.data.token, r.data);
+    } else {
+      r = await call("POST", "/api/account/forgot-password", null, { email: acctEmail, phone: "9000000000" });
+      const genericMsg = r.data.message;
+      check("forgot(call): wrong phone gives generic reply", r.status === 200 && !!genericMsg, r.data);
+      r = await call("POST", "/api/account/forgot-password", null, { email: acctEmail, phone: "9876543210" });
+      check("forgot(call): same reply when details match", r.status === 200 && r.data.message === genericMsg, r.data);
+      r = await call("GET", "/api/support/tickets", adT);
+      check("forgot(call): support ticket created", JSON.stringify(r.data).includes("Password reset"), r.status);
+    }
     r = await call("POST", `/api/admin/users/${acctId}/reset-password`, cT);
     check("customer cannot reset others' passwords", r.status === 403, r.data);
     r = await call("POST", `/api/admin/users/${acctId}/reset-password`, adT);

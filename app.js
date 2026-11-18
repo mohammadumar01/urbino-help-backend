@@ -134,6 +134,7 @@ app.use("/api", apiLimiter);
 app.use("/api/auth/login", authLimiter);
 app.use("/api/auth/register", authLimiter);
 app.use("/api/account/forgot-password", authLimiter);
+app.use("/api/account/reset-password", authLimiter);
 app.use("/api/chatbot", chatbotLimiter);
 
 app.use("/api/auth", authRoutes);
