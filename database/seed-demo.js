@@ -157,7 +157,7 @@ async function main() {
             await client.query(
                 `INSERT INTO agent_profiles (agent_id, experience_years, skills, service_area, verification_status)
                  VALUES ($1, $2, $3, $4, 'approved')`,
-                [id, 3 + i, "Trained by Urbino Help", rnd(["Jaipur", "Kota"], i)]
+                [id, 3 + i, "Trained by Urbino", rnd(["Jaipur", "Kota"], i)]
             );
             await client.query("INSERT INTO provider_agents (provider_id, agent_id) VALUES ($1, $2)", [providers[a.provider].id, id]);
             providers[a.provider].agents.push(id);

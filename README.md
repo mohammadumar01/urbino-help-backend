@@ -1,4 +1,4 @@
-# Urbino Help Backend API
+# Urbino Backend API
 
 A production-oriented RESTful Backend API for an On-Demand Home Service Platform.
 

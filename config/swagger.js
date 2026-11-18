@@ -5,9 +5,9 @@ const swaggerOptions = {
         openapi: "3.0.0",
 
         info: {
-            title: "Urbino Help API",
+            title: "Urbino API",
             version: "1.0.0",
-            description: "Backend APIs for Urbino Help Service Marketplace",
+            description: "Backend APIs for Urbino Service Marketplace",
         },
 
       servers: [

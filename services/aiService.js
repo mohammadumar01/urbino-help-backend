@@ -1,5 +1,5 @@
 /**
- * Urbino Help assistant.
+ * Urbino assistant.
  *  - OPENAI_API_KEY ho to AI (baatcheet + user ki bookings ka context)
  *  - Key na ho / AI fail ho to built-in FAQ se jawab (app kabhi "chup" nahi hota)
  * Har jawab ke saath "talk to a person" ka option frontend dikhata hai.
@@ -9,7 +9,7 @@ const OpenAI = require("openai");
 const MODEL = process.env.OPENAI_MODEL || "gpt-5.6-luna";
 const client = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY, timeout: 15000, maxRetries: 1 }) : null;
 
-const SYSTEM = `You are "Urbino Assistant", the help assistant of Urbino Help, an Indian marketplace for home and personal services
+const SYSTEM = `You are "Urbino Assistant", the help assistant of Urbino, an Indian marketplace for home and personal services
 (cleaning, AC/appliance repair, electrician, plumbing, beauty at home, tutors, pest control, packers & movers, elder care and more).
 
 How Urbino works (only state these facts):

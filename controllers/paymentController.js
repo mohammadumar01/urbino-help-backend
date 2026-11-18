@@ -98,7 +98,7 @@ const createPaymentOrder = async (req, res, next) => {
                 currency: order.currency,
                 key_id: order.keyId,
                 gateway: order.gateway,
-                name: "Urbino Help",
+                name: "Urbino",
                 description: `${booking.service_name} (Booking #${booking.id})`,
                 prefill: { name: req.user.name, email: req.user.email },
             },

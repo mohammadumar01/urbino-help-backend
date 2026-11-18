@@ -11,7 +11,7 @@ sendMessage
  * @swagger
  * /api/chatbot/message:
  *   post:
- *     summary: Send a message to Urbino Help AI Assistant
+ *     summary: Send a message to Urbino AI Assistant
  *     tags: [AI Chatbot]
  *     requestBody:
  *       required: true

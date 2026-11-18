@@ -109,7 +109,7 @@ const chatbotLimiter = rateLimit({
 
 // ---------- Health ----------
 app.get("/", (req, res) => {
-    res.json({ success: true, message: "Urbino Help Backend running" });
+    res.json({ success: true, message: "Urbino Backend running" });
 });
 
 app.get("/health", async (req, res) => {
