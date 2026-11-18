@@ -5,6 +5,7 @@ const {
     getOnboardingStatus,
 } = require("../models/providerProfileModel");
 const { invalidatePublic } = require("../middleware/cacheMiddleware");
+const { readLatLng } = require("../utils/geo");
 
 function bad(res, status, message) {
     return res.status(status).json({ success: false, message });
@@ -30,7 +31,19 @@ function cleanProfile(body) {
     if (profile_image && !/^https:\/\/[^\s]+$/i.test(profile_image)) {
         return { error: "Profile image must be an https:// link." };
     }
-    return { data: { bio, skills, service_area, experience_years, hourly_rate, profile_image } };
+    // Map par base location (optional) + kitne km tak kaam karte hain
+    const point = readLatLng(body);
+    if (point === null) return { error: "Invalid map location. Please pin your base location again." };
+    const radius = body.service_radius_km == null || body.service_radius_km === "" ? null : Number(body.service_radius_km);
+    if (radius != null && (!Number.isInteger(radius) || radius < 1 || radius > 100)) {
+        return { error: "Service radius must be between 1 and 100 km." };
+    }
+    return {
+        data: {
+            bio, skills, service_area, experience_years, hourly_rate, profile_image,
+            latitude: point?.lat ?? null, longitude: point?.lng ?? null, service_radius_km: radius,
+        },
+    };
 }
 
 /** POST aur PUT /api/provider-profile/profile dono: create ya update. */

@@ -1,6 +1,7 @@
 const {
     discoverProviders
 } = require("../models/serviceDiscoveryModel");
+const { readLatLng } = require("../utils/geo");
 
 
 const getDiscoveredProviders = async (req, res) => {
@@ -23,9 +24,11 @@ const getDiscoveredProviders = async (req, res) => {
         }
 
 
+        const near = readLatLng(req.query) || null;
         const providers = await discoverProviders(
             service_id,
-            service_area
+            service_area,
+            near
         );
 
 

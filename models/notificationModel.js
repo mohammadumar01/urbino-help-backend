@@ -51,7 +51,8 @@ const query = `
         created_at
     FROM notifications
     WHERE user_id = $1
-    ORDER BY created_at DESC;
+    ORDER BY created_at DESC, id DESC
+    LIMIT 50;
 `;
 
 const result = await pool.query(query, [user_id]);

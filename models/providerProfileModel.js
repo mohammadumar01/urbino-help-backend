@@ -18,8 +18,9 @@ const upsertProviderProfile = async (providerId, p) => {
     const result = await pool.query(
         `
         INSERT INTO provider_profiles
-            (provider_id, bio, experience_years, skills, service_area, hourly_rate, profile_image)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+            (provider_id, bio, experience_years, skills, service_area, hourly_rate, profile_image,
+             latitude, longitude, service_radius_km)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, COALESCE($10, 15))
         ON CONFLICT (provider_id) DO UPDATE SET
             bio = EXCLUDED.bio,
             experience_years = EXCLUDED.experience_years,
@@ -27,10 +28,15 @@ const upsertProviderProfile = async (providerId, p) => {
             service_area = EXCLUDED.service_area,
             hourly_rate = EXCLUDED.hourly_rate,
             profile_image = EXCLUDED.profile_image,
+            -- location na bheja ho to purani rakho
+            latitude = COALESCE($8, provider_profiles.latitude),
+            longitude = COALESCE($9, provider_profiles.longitude),
+            service_radius_km = COALESCE($10, provider_profiles.service_radius_km),
             updated_at = CURRENT_TIMESTAMP
         RETURNING *
         `,
-        [providerId, p.bio, p.experience_years, p.skills, p.service_area, p.hourly_rate, p.profile_image]
+        [providerId, p.bio, p.experience_years, p.skills, p.service_area, p.hourly_rate, p.profile_image,
+            p.latitude ?? null, p.longitude ?? null, p.service_radius_km ?? null]
     );
     return result.rows[0];
 };
@@ -54,6 +60,8 @@ const getPublicProviderProfile = async (providerId) => {
             pp.hourly_rate,
             pp.profile_image,
             pp.is_verified,
+            pp.service_radius_km,
+            pp.latitude IS NOT NULL AS has_location,
             COALESCE((SELECT ROUND(AVG(r.rating), 2) FROM reviews r WHERE r.provider_id = pp.provider_id), 0) AS average_rating,
             (SELECT COUNT(*) FROM reviews r WHERE r.provider_id = pp.provider_id)::int AS total_reviews,
             (SELECT COUNT(*) FROM bookings b WHERE b.provider_id = pp.provider_id AND b.status = 'completed')::int AS completed_jobs,

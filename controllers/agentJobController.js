@@ -1,4 +1,5 @@
 const m = require("../models/agentJobModel");
+const { clearTracking } = require("./trackingController");
 const { createNotification } = require("../models/notificationModel");
 const redisClient = require("../config/redis");
 const CACHE_KEYS = require("../config/cacheKeys");
@@ -106,6 +107,7 @@ function step(action) {
             }
 
             await afterChange(b);
+            if (action === "complete") await clearTracking(b.id);
             const msg = MESSAGES[action];
             await notify(b.customer_id, b.id, msg.customer[0], msg.customer[1](b), msg.customer[2]);
             await notify(b.provider_id, b.id, msg.provider[0], msg.provider[1](b), msg.provider[2]);

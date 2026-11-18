@@ -240,6 +240,8 @@ const getMyBookings = async (provider_id) => {
             u.phone AS customer_phone,
             b.service_name,
             b.address,
+            b.latitude::float AS latitude,
+            b.longitude::float AS longitude,
             b.booking_date,
             b.booking_time,
             b.status,

@@ -15,7 +15,7 @@ const FLOW = {
 
 const JOB_SELECT = `
     SELECT
-        b.id, b.status, b.service_name, b.address, b.booking_date, b.booking_time, b.price,
+        b.id, b.status, b.service_name, b.address, b.latitude::float AS latitude, b.longitude::float AS longitude, b.booking_date, b.booking_time, b.price,
         b.customer_id, c.name AS customer_name, c.phone AS customer_phone,
         b.provider_id, p.name AS provider_name, p.phone AS provider_phone,
         b.provider_accepted_at, b.agent_assigned_at, b.agent_accepted_at, b.on_the_way_at, b.started_at, b.completed_at,

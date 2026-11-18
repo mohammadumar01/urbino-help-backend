@@ -328,6 +328,16 @@ const agentOnly = [authMiddleware, roleMiddleware(ROLES.AGENT)];
  *     security: [{ bearerAuth: [] }]
  */
 router.get("/jobs", ...agentOnly, jobs.listJobs);
+
+/**
+ * @swagger
+ * /api/agent/jobs/{id}/location:
+ *   post:
+ *     summary: Share live location while on the way / working. Body { latitude, longitude, accuracy?, heading? }
+ *     tags: [Maps]
+ *     security: [{ bearerAuth: [] }]
+ */
+router.post("/jobs/:id/location", ...agentOnly, require("../controllers/trackingController").updateAgentLocation);
 router.get("/summary", ...agentOnly, jobs.getSummary);
 router.get("/jobs/:id", ...agentOnly, jobs.getJob);
 router.put("/decline/:id", ...agentOnly, jobs.declineJob);

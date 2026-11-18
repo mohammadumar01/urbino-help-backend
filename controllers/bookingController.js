@@ -1,3 +1,5 @@
+const { readLatLng } = require("../utils/geo");
+const { clearTracking } = require("./trackingController");
 const CACHE_KEYS = require("../config/cacheKeys");
 const redisClient = require("../config/redis");
 const {
@@ -65,6 +67,12 @@ const createCustomerBooking = async (req, res, next) => {
             return res.status(400).json({ success: false, message: dateError });
         }
 
+        // Map se chuna gaya exact location (optional)
+        const point = readLatLng(req.body);
+        if (point === null) {
+            return res.status(400).json({ success: false, message: "Invalid map location. Please pick the address again." });
+        }
+
         let finalServiceId = null;
         let finalServiceName = String(service_name || "").trim();
         let price = null;
@@ -106,6 +114,8 @@ const createCustomerBooking = async (req, res, next) => {
             booking_time: String(booking_time).slice(0, 5),
             provider_id: provider_id ? Number(provider_id) : null,
             price,
+            latitude: point?.lat ?? null,
+            longitude: point?.lng ?? null,
         });
 
         await invalidateCaches(req.user.id);
@@ -179,6 +189,7 @@ const cancelCustomerBooking = async (req, res, next) => {
 
         const { booking } = result;
         await invalidateCaches(req.user.id);
+        await clearTracking(booking.id);
 
         // Pehle se paid booking cancel hui to paisa wapas
         const refund = await refundForBooking(booking.id, "Booking cancelled").catch((err) => {

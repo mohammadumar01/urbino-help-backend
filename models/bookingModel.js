@@ -43,12 +43,14 @@ const createBooking = async ({
     booking_time,
     provider_id,
     price,
+    latitude = null,
+    longitude = null,
 }) => {
     const result = await pool.query(
         `
         INSERT INTO bookings
-            (customer_id, service_id, service_name, address, booking_date, booking_time, provider_id, price)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            (customer_id, service_id, service_name, address, booking_date, booking_time, provider_id, price, latitude, longitude)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         RETURNING *;
         `,
         [
@@ -60,6 +62,8 @@ const createBooking = async ({
             booking_time,
             provider_id || null,
             price ?? null,
+            latitude,
+            longitude,
         ]
     );
     return result.rows[0];
@@ -92,6 +96,8 @@ const getBookingsByCustomerId = async (customer_id, limit, offset, search, statu
             b.service_id,
             b.service_name,
             b.address,
+            b.latitude::float AS latitude,
+            b.longitude::float AS longitude,
             b.booking_date,
             b.booking_time,
             b.status,

@@ -365,6 +365,26 @@ npm run migrate
   (`direction`: `to_provider` | `from_provider`). A settlement can never exceed the due balance,
   and a per-provider lock stops two admins recording the same payout twice.
 
+## Maps, live tracking and notifications
+
+Maps use OpenStreetMap (no API key). Address search goes through the backend so results are
+cached in Redis and the geocoder's usage policy is respected; set `GEOCODER_URL` to a
+self-hosted Nominatim (or another compatible service) for heavy production traffic.
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/geo/search?q=&lat=&lng=` | Address suggestions (India), nearby results first |
+| `GET /api/geo/reverse?lat=&lng=` | Address for a map pin / "use my location" |
+| `POST /api/booking/create` (+ `latitude`, `longitude`) | Booking saves the exact pin |
+| `GET /api/service-discovery/providers?service_id=&lat=&lng=` | Adds `distance_km` and `in_range`; nearby providers first |
+| `PUT /api/provider-profile/profile` (+ `latitude`, `longitude`, `service_radius_km`) | Provider base location and travel radius |
+| `POST /api/agent/jobs/:id/location` | Agent phone shares GPS every ~15 s, only while on the way / working |
+| `GET /api/tracking/:bookingId` | Destination, agent location, distance, ETA (customer: only while on the way; provider/admin: also during work) |
+| `GET /api/notifications`, `GET /api/notifications/unread-count`, `PATCH /api/notifications/read-all` | Bell icon in every app |
+
+Privacy: the agent's location is stored as one row per booking and deleted as soon as the job
+is completed or cancelled.
+
 ## Provider onboarding
 
 | Endpoint | Purpose |

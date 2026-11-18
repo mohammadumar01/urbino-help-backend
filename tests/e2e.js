@@ -75,7 +75,7 @@ const tomorrow = new Date(Date.now() + 86400000 + 5.5 * 3600000).toISOString().s
     const providerId = JSON.parse(Buffer.from(pT.split(".")[1], "base64url")).id;
 
     // provider setup
-    r = await call("POST", "/api/provider-profile/profile", pT, { bio: "e2e", experience_years: 3, skills: "all", service_area: "Kota", hourly_rate: 200 });
+    r = await call("POST", "/api/provider-profile/profile", pT, { bio: "e2e", experience_years: 3, skills: "all", service_area: "Kota", hourly_rate: 200, latitude: 25.1802, longitude: 75.8333, service_radius_km: 20 });
     check("provider profile", r.status === 201 || r.status === 200, r.data);
     r = await call("POST", "/api/provider-services", pT, { service_id: service.id, price: 777 });
     check("provider adds service", r.status === 201 || r.status === 200, r.data);
@@ -111,12 +111,23 @@ const tomorrow = new Date(Date.now() + 86400000 + 5.5 * 3600000).toISOString().s
     check("past date rejected", r.status === 400, r.data);
     r = await call("POST", "/api/booking/create", pT, { service_id: service.id, address: "x", booking_date: tomorrow, booking_time: "10:00" });
     check("provider cannot create customer booking", r.status === 403, r.data);
-    r = await call("POST", "/api/booking/create", cT, { service_id: service.id, address: "12 Test Road, Kota", booking_date: tomorrow, booking_time: "10:00", provider_id: providerId });
+    // ---------- maps ----------
+    r = await call("GET", "/api/geo/search?q=ab");
+    check("geo search needs 3+ letters", r.status === 400, r.data);
+    r = await call("GET", "/api/geo/reverse?lat=999&lng=1");
+    check("geo reverse validates lat/lng", r.status === 400, r.data);
+    r = await call("GET", `/api/service-discovery/providers?service_id=${service.id}&lat=25.17&lng=75.84`);
+    const near = r.data.providers?.find((p) => p.provider_id === providerId);
+    check("discovery shows distance + in range", near && near.distance_km > 0 && near.distance_km < 5 && near.in_range === true, near);
+    r = await call("POST", "/api/booking/create", cT, { service_id: service.id, address: "x road", booking_date: tomorrow, booking_time: "10:00", provider_id: providerId, latitude: 500, longitude: 75 });
+    check("booking rejects invalid map point", r.status === 400, r.data);
+    r = await call("POST", "/api/booking/create", cT, { service_id: service.id, address: "12 Test Road, Kota", booking_date: tomorrow, booking_time: "10:00", provider_id: providerId, latitude: 25.17, longitude: 75.84 });
     check("customer creates booking with price snapshot", r.status === 201 && Number(r.data.booking.price) === 777 && r.data.booking.service_id === service.id, r.data);
     const bookingId = r.data.booking.id;
 
     r = await call("GET", "/api/booking/my-bookings", cT);
     check("my bookings has provider name", r.status === 200 && r.data.bookings[0]?.provider_name === "E2E Provider", r.data);
+    check("booking saved map point", r.data.bookings?.[0]?.latitude === 25.17 && r.data.bookings?.[0]?.longitude === 75.84, r.data.bookings?.[0]);
 
     r = await call("PUT", `/api/provider-bookings/accept/${bookingId}`, cT);
     check("customer cannot accept as provider", r.status === 403, r.data);
@@ -144,10 +155,26 @@ const tomorrow = new Date(Date.now() + 86400000 + 5.5 * 3600000).toISOString().s
     r = await call("GET", "/api/booking/my-bookings", cT);
     const otp = r.data.bookings?.find((b) => b.id === bookingId)?.start_otp;
     check("customer sees 4-digit start code", /^\d{4}$/.test(otp || ""), r.data.bookings?.[0]);
+    r = await call("POST", `/api/agent/jobs/${bookingId}/location`, aT, { latitude: 25.2, longitude: 75.85 });
+    check("no location sharing before on-the-way", r.status === 409, r.data);
     r = await call("GET", `/api/agent/jobs/${bookingId}`, aT);
+    check("agent job has map point", r.data.job?.latitude === 25.17, r.data.job);
     check("agent never sees the start code", r.status === 200 && !("start_otp" in r.data.job), r.data);
     r = await call("PUT", `/api/agent/on-the-way/${bookingId}`, aT);
     check("agent on-the-way", r.status === 200, r.data);
+    r = await call("GET", `/api/tracking/${bookingId}`, cT);
+    check("tracking before first ping: not live", r.status === 200 && r.data.tracking.live === false && r.data.tracking.destination.latitude === 25.17, r.data);
+    r = await call("POST", `/api/agent/jobs/${bookingId}/location`, aT, { latitude: "abc", longitude: 75.85 });
+    check("agent location validated", r.status === 400, r.data);
+    r = await call("POST", `/api/agent/jobs/${bookingId}/location`, pT, { latitude: 25.2, longitude: 75.85 });
+    check("only agent can share location", r.status === 403, r.data);
+    r = await call("POST", `/api/agent/jobs/${bookingId}/location`, aT, { latitude: 25.2, longitude: 75.85, accuracy: 12 });
+    check("agent shares live location", r.status === 200, r.data);
+    r = await call("GET", `/api/tracking/${bookingId}`, cT);
+    const tr = r.data.tracking;
+    check("customer sees agent live with distance + ETA", tr?.live && tr.distance_km > 2 && tr.distance_km < 5 && tr.eta_minutes > 0 && tr.agent?.name === "E2E agent", tr);
+    r = await call("GET", `/api/tracking/${bookingId}`, adT);
+    check("admin can view tracking", r.status === 200 && r.data.tracking.live, r.data);
     r = await call("GET", "/api/provider/my-bookings", pT);
     const tracked = r.data.bookings?.find((b) => b.id === bookingId);
     check("provider tracks agent (name + on-the-way time)", tracked?.agent_name === "E2E agent" && !!tracked?.on_the_way_at, tracked);
@@ -158,12 +185,18 @@ const tomorrow = new Date(Date.now() + 86400000 + 5.5 * 3600000).toISOString().s
     check("wrong start code rejected", r.status === 400, r.data);
     r = await call("PUT", `/api/agent/start/${bookingId}`, aT, { otp });
     check("agent starts with customer's code", r.status === 200 && r.data.job.status === "in_progress", r.data);
+    r = await call("GET", `/api/tracking/${bookingId}`, cT);
+    check("customer stops seeing agent location once work starts", r.data.tracking?.live === false, r.data);
+    r = await call("GET", `/api/tracking/${bookingId}`, pT);
+    check("provider still sees agent during work", r.data.tracking?.live === true, r.data);
     r = await call("GET", "/api/booking/my-bookings", cT);
     check("start code hidden after start", !r.data.bookings?.find((b) => b.id === bookingId)?.start_otp, r.data.bookings?.[0]);
     r = await call("PUT", `/api/booking/cancel/${bookingId}`, cT);
     check("cannot cancel in-progress booking", r.status === 409, r.data);
     r = await call("PUT", `/api/agent/complete/${bookingId}`, aT);
     check("agent completes", r.status === 200, r.data);
+    const { rows: trackRows } = await pool.query("SELECT 1 FROM booking_tracking WHERE booking_id = $1", [bookingId]);
+    check("location deleted after job completes", trackRows.length === 0, trackRows);
 
     // ---------- payments (Step 2) ----------
     r = await call("GET", "/api/payment/config");
