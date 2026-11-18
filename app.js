@@ -47,6 +47,10 @@ app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(compression());
 
 // Sirf apne frontend(s) ko allow karo. FRONTEND_URL comma-separated ho sakta hai.
+const originSuffixes = (process.env.CORS_ORIGIN_SUFFIXES || "")
+    .split(",")
+    .map((x) => x.trim())
+    .filter((x) => x.startsWith("."));
 const allowedOrigins = (process.env.FRONTEND_URL || "http://localhost:3000")
     .split(",")
     .map((o) => o.trim())
@@ -57,6 +61,10 @@ app.use(
         origin(origin, cb) {
             // Postman / server-to-server calls mein origin nahi hota
             if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+            // Demo tunnel ka URL har baar badalta hai: CORS_ORIGIN_SUFFIXES=.lhr.life se poora domain allow
+            if (originSuffixes.some((sfx) => /^https:\/\/[a-z0-9-]+(\.[a-z0-9-]+)*$/i.test(origin) && origin.endsWith(sfx))) {
+                return cb(null, true);
+            }
             return cb(new Error("Not allowed by CORS"));
         },
         credentials: true,
