@@ -124,7 +124,8 @@ const login = async (req, res) => {
             name: user.name,
             email: user.email,
             phone: user.phone,
-            role: user.role === ROLES.USER ? ROLES.CUSTOMER : user.role
+            role: user.role === ROLES.USER ? ROLES.CUSTOMER : user.role,
+            must_change_password: Boolean(user.must_change_password)
         };
 
         return res.status(200).json({

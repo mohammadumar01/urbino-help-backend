@@ -388,6 +388,45 @@ const tomorrow = new Date(Date.now() + 86400000 + 5.5 * 3600000).toISOString().s
     await pool.query("DELETE FROM services WHERE id = $1", [newSvc]);
     await pool.query("DELETE FROM categories WHERE id = $1", [catId]);
 
+    // ---------- account: profile, password, forgot + admin reset ----------
+    const acctEmail = `acct${ts}@e2e.test`;
+    await call("POST", "/api/auth/register", null, { name: "E2E Account", email: acctEmail, password: "password123", phone: "9000000009" });
+    let acT = await login(acctEmail);
+    r = await call("GET", "/api/account/me", acT);
+    check("account: me", r.status === 200 && r.data.user.email === acctEmail && r.data.user.must_change_password === false, r.data);
+    r = await call("PUT", "/api/account/profile", acT, { name: "E2E Account Renamed", phone: "12345" });
+    check("account: bad phone rejected", r.status === 400, r.data);
+    r = await call("PUT", "/api/account/profile", acT, { name: "E2E Account Renamed", phone: "+91 98765 43210" });
+    check("account: profile updated (+91 cleaned)", r.status === 200 && r.data.user.phone === "9876543210", r.data);
+    r = await call("PUT", "/api/account/password", acT, { current_password: "wrongpass1", new_password: "newpass123" });
+    check("account: wrong current password", r.status === 400, r.data);
+    r = await call("PUT", "/api/account/password", acT, { current_password: "password123", new_password: "short" });
+    check("account: weak new password", r.status === 400, r.data);
+    r = await call("PUT", "/api/account/password", acT, { current_password: "password123", new_password: "newpass123" });
+    check("account: password changed", r.status === 200, r.data);
+    r = await call("POST", "/api/auth/login", null, { email: acctEmail, password: "newpass123" });
+    check("account: login with new password", r.status === 200 && !!r.data.token, r.data);
+    r = await call("POST", "/api/account/forgot-password", null, { email: acctEmail, phone: "9000000000" });
+    const genericMsg = r.data.message;
+    check("forgot: wrong phone gives generic reply", r.status === 200 && !!genericMsg, r.data);
+    r = await call("POST", "/api/account/forgot-password", null, { email: acctEmail, phone: "9876543210" });
+    check("forgot: same reply when details match", r.status === 200 && r.data.message === genericMsg, r.data);
+    const acctId = (await pool.query("SELECT id FROM users WHERE email = $1", [acctEmail])).rows[0].id;
+    r = await call("GET", "/api/support/tickets", adT);
+    check("forgot: support ticket created", JSON.stringify(r.data).includes("Password reset"), r.status);
+    r = await call("POST", `/api/admin/users/${acctId}/reset-password`, cT);
+    check("customer cannot reset others' passwords", r.status === 403, r.data);
+    r = await call("POST", `/api/admin/users/${acctId}/reset-password`, adT);
+    const temp = r.data.temporary_password;
+    check("admin issues temporary password", r.status === 200 && /^[A-Za-z]{3}\d{4}[a-z]$/.test(temp || ""), r.data);
+    r = await call("POST", "/api/auth/login", null, { email: acctEmail, password: temp });
+    check("login with temp password asks to change it", r.status === 200 && r.data.user.must_change_password === true, r.data);
+    acT = r.data.token;
+    r = await call("PUT", "/api/account/password", acT, { current_password: temp, new_password: "fresh12345" });
+    r = await call("GET", "/api/account/me", acT);
+    check("must_change cleared after change", r.data.user?.must_change_password === false, r.data);
+    await pool.query("DELETE FROM support_tickets WHERE user_id = $1", [acctId]);
+
     // agent declines -> back to provider
     r = await call("POST", "/api/booking/create", cT, { service_id: service.id, address: "Decline Lane", booking_date: tomorrow, booking_time: "17:00", provider_id: providerId });
     const dBooking = r.data.booking.id;

@@ -133,6 +133,7 @@ app.get("/health", async (req, res) => {
 app.use("/api", apiLimiter);
 app.use("/api/auth/login", authLimiter);
 app.use("/api/auth/register", authLimiter);
+app.use("/api/account/forgot-password", authLimiter);
 app.use("/api/chatbot", chatbotLimiter);
 
 app.use("/api/auth", authRoutes);
@@ -163,6 +164,7 @@ app.use("/api/service-discovery", serviceDiscoveryRoutes);
 app.use("/api/support", require("./routes/supportRoutes"));
 app.use("/api/claims", require("./routes/claimRoutes"));
 app.use("/api/geo", require("./routes/geoRoutes"));
+app.use("/api/account", require("./routes/accountRoutes"));
 app.use("/api/tracking", require("./routes/trackingRoutes"));
 
 // API docs production mein band (ENABLE_API_DOCS=true se khol sakte ho)

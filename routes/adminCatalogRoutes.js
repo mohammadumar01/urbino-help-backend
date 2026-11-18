@@ -58,4 +58,14 @@ router.post("/catalog/categories", ...adminOnly, catalog.createCategory);
 router.put("/catalog/categories/:id", ...adminOnly, catalog.updateCategory);
 router.get("/reports", ...adminOnly, reports.getReport);
 
+/**
+ * @swagger
+ * /api/admin/users/{id}/reset-password:
+ *   post:
+ *     summary: Issue a one-time temporary password (user must change it after login)
+ *     tags: [Admin catalog & reports]
+ *     security: [{ bearerAuth: [] }]
+ */
+router.post("/users/:id/reset-password", ...adminOnly, require("../controllers/accountController").adminResetPassword);
+
 module.exports = router;
